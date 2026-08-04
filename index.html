@@ -236,7 +236,7 @@ const SUBS=[['T','Terreau'],['PV','Perlite-vermiculite'],['AA','Argile'],['AP','
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const KEY='pepins_db_v2';let mem=null;
+const KEY='pepins_db_v3';const OLDKEYS=['pepins_db_v2','pepins_db_v1'];let mem=null;
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'T',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026};
 
 function loadDB(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return mem;}
@@ -497,7 +497,17 @@ function resetData(){state.records=seed();saveDB();closeSheet();toast('Données 
   sb.addEventListener('touchmove',e=>{if(sy==null)return;dy=e.touches[0].clientY-sy;if(dy<0)dy=0;sb.style.transform='translateY('+dy+'px)';},{passive:true});
   sb.addEventListener('touchend',()=>{if(sy==null)return;sb.style.transition='';sb.style.transform='';if(dy>100)closeSheet();sy=null;dy=0;});
 })();
-function init(){const db=loadDB();state.records=(db&&db.length!==undefined)?db:seed();if(!db)saveDB();fillForm();renderHome();}
+function init(){
+  let db=loadDB();
+  if(db&&db.length!==undefined){state.records=db;}
+  else{
+    // première charge de cette version : données propres + on récupère ce que tu as saisi toi-même
+    let userAdded=[];
+    for(const k of OLDKEYS){try{const old=JSON.parse(localStorage.getItem(k)||'[]');if(Array.isArray(old)){userAdded=old.filter(r=>r&&r.id&&String(r.id)[0]==='u');if(userAdded.length)break;}}catch(e){}}
+    state.records=seed().concat(userAdded);saveDB();
+  }
+  fillForm();renderHome();
+}
 init();
 </script>
 </body>
