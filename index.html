@@ -167,7 +167,8 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <p class="dsub">Quelques taps, les mains dans la terre.</p>
       <div class="seg"><button class="on" data-mode="greffe" onclick="mode('greffe',this)">🌿 Greffe</button><button data-mode="bouture" onclick="mode('bouture',this)">🪴 Bouture</button></div>
       <div class="field"><label>Famille</label><select class="inp" id="f-fam" onchange="fillVarByFam()"></select></div>
-      <div class="field"><label>Variété</label><select class="inp" id="f-var"></select></div>
+      <div class="field"><label>Variété</label><select class="inp" id="f-var" onchange="onVarChange()"></select>
+        <input class="inp" id="f-varnew" style="display:none;margin-top:8px" placeholder="Nom de la nouvelle variété"></div>
       <div class="field"><label>Année</label><div class="seg" id="f-year"></div></div>
       <div id="greffe-fields">
         <div class="field"><label>Porte-greffe</label><select class="inp" id="f-pg"></select></div>
@@ -407,12 +408,14 @@ function fillForm(){
   $('#f-sub').innerHTML=SUBS.map(([k,l])=>`<button class="opt${k===state.sub?' sel':''}" onclick="pick('sub','${k}',this)">${k} · ${l}</button>`).join('');
   $('#dosegrid').innerHTML=STD_DOSES.map(([k,l])=>`<span class="dl">${l}</span><input class="miniinp" id="dose-${k.replace(/[^a-z0-9]/gi,'')}" data-k="${k}" inputmode="numeric" placeholder="0"><span></span>`).join('');
 }
-function fillVarByFam(){const f=$('#f-fam').value;const list=DATA.varietes.filter(v=>v.fam===f).sort((a,b)=>a.nom.localeCompare(b.nom));$('#f-var').innerHTML=list.map(v=>`<option>${v.nom}</option>`).join('')||'<option>—</option>';}
+function fillVarByFam(){const f=$('#f-fam').value;const list=DATA.varietes.filter(v=>v.fam===f).sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));$('#f-var').innerHTML=list.map(v=>`<option>${v.nom}</option>`).join('')+'<option value="__new__">➕ Autre variété (à saisir)</option>';onVarChange();}
+function onVarChange(){const n=$('#f-var').value==='__new__';$('#f-varnew').style.display=n?'block':'none';if(n){$('#f-varnew').value='';setTimeout(()=>$('#f-varnew').focus(),50);}}
 function renderAddYear(){$('#f-year').innerHTML=[2026,2027,2028].map(y=>`<button class="${y===state.addYear?'on':''}" onclick="state.addYear=${y};renderAddYear()">${y}</button>`).join('');}
 function pickOp(o,btn){if(state.op===o){state.op=null;btn.classList.remove('sel');}else{state.op=o;btn.parentNode.querySelectorAll('.opt').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}}
 function pickTog(k,val,btn){if(state[k]===val){state[k]=null;btn.classList.remove('sel');}else{state[k]=val;btn.parentNode.querySelectorAll('.opt').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}}
 function save(){
-  const v=$('#f-var').value;const fam=$('#f-fam').value;const yr=state.addYear;
+  const sel=$('#f-var').value;const v=(sel==='__new__')?($('#f-varnew').value||'').trim():sel;const fam=$('#f-fam').value;const yr=state.addYear;
+  if(!v){toast('Indique le nom de la variété');return;}
   if(state.mode==='greffe'){
     const eff=parseInt($('#f-eff').value)||0;
     state.records.unshift({id:uid(),type:'greffe',v,famille:fam,pg:$('#f-pg').value,rang:state.rang,annee:yr,greffe:eff>0?'oui':'non',prev:parseInt($('#f-prev').value)||0,eff,op:state.op||null,rep:null,regr:null,rep2:null,invendus:null,rupture:null,date:today()});
