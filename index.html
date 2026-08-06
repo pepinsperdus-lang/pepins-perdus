@@ -267,16 +267,12 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
 
     <section class="view" id="v-stock">
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Disponible &middot; site</h2>
-      <p class="dsub">Ce qui est pr&ecirc;t &agrave; la vente maintenant. &Agrave; synchroniser avec ton site P&eacute;pins Perdus.</p>
-      <div class="kgrid" id="stock-kpi"></div>
-      <div class="card" id="stocklist" style="margin-top:14px"></div>
-      <div class="card" id="stock-sync" style="padding:15px 16px;margin-top:14px">
-        <div style="display:flex;gap:13px;align-items:flex-start">
-          <div style="width:40px;height:40px;border-radius:12px;flex:none;display:grid;place-items:center;background:linear-gradient(140deg,#4b7f52,#2c5c3d)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg></div>
-          <div style="flex:1"><b style="font-family:'Fraunces';color:var(--forest);font-size:15px">Synchroniser avec le site</b><p style="font-size:12.5px;color:var(--muted);margin:5px 0 0;line-height:1.45">Bient&ocirc;t : ton stock ici et celui de P&eacute;pins Perdus rest&eacute;s align&eacute;s automatiquement (via Make/PrestaShop), sans double saisie.</p></div>
-        </div>
-        <button class="ghost" style="margin-top:12px" onclick="toast('Sync PrestaShop \u2014 on la met en place bient&ocirc;t')">Connecter mon site</button>
-      </div>
+      <p class="dsub">Ton vrai stock en vente sur pepinsperdus.fr, lu en direct.</p>
+      <div class="kgrid" id="site-kpi"></div>
+      <div class="togglerow" style="justify-content:space-between;margin-top:12px"><span id="site-status" style="color:var(--muted);font-weight:600;font-size:12.5px"></span><button class="ghost" style="width:auto;margin:0;padding:8px 15px" onclick="loadSite(true)">&#8635; Rafra&icirc;chir</button></div>
+      <div class="card" id="site-list"></div>
+      <div class="sec" id="pending-sec" style="margin-top:18px;display:none">En attente de mise en vente (local)</div>
+      <div class="card" id="stocklist" style="display:none;margin-bottom:10px"></div>
     </section>
   </div>
 
@@ -696,27 +692,22 @@ function addElev(){var nom=($('#el-nom').value||'').trim();if(!nom){toast('Nom d
 
 function renderStock(){
   var d=ELEV.dispo;
-  var nPlants=d.reduce(function(s,l){return s+(l.qty||0);},0);
-  var nVar={};d.forEach(function(l){nVar[l.nom]=1;});
-  var reserve=ELEV.lots.reduce(function(s,l){return s+(l.qty||0);},0);
-  $('#stock-kpi').innerHTML=
-    '<div class="kpi hero"><div class="n">'+fmt(nPlants)+'</div><div class="l">plants disponibles · en vente sur le site</div></div>'+
-    '<div class="kpi"><div class="n">'+fmt(Object.keys(nVar).length)+'</div><div class="l">Variétés en vente</div></div>'+
-    '<div class="kpi"><div class="n">'+fmt(reserve)+'</div><div class="l">En réserve · stock global</div></div>';
-  if(!d.length){$('#stocklist').innerHTML=emptyBox('Rien en vente pour l\'instant. Depuis le Stock global, appuie sur « En vente » sur un lot prêt.');return;}
-  var groups={};d.forEach(function(l){var f=l.fam||'Autres';(groups[f]=groups[f]||[]).push(l);});
-  var fams=Object.keys(groups).sort(function(a,b){return a.localeCompare(b,'fr');});
-  var out='';
-  fams.forEach(function(f){var arr=groups[f];
-    out+='<div class="famh">'+f+'<em>'+arr.reduce(function(s,l){return s+(l.qty||0);},0)+'</em></div>';
-    out+=arr.map(function(l){
-      return '<div class="ent"><div class="av" style="background:#3f7350">'+fmt(l.qty)+'</div><div class="m"><b>'+l.nom+'</b><span><span class="pill pg">En vente</span> &middot; '+oriLabel(l.origine)+'</span></div>'+
-        '<button onclick="dispoMinus(\''+l.id+'\')" title="Renvoyer 1 en réserve" style="background:#eceadf;border:none;color:#8a8571;width:30px;height:30px;border-radius:9px;font-size:17px;font-weight:700;flex:none">&minus;</button>'+
-        '<button onclick="dispoPlus(\''+l.id+'\')" title="Ajouter 1 depuis la réserve" style="background:var(--sage-soft);border:none;color:#2f6b41;width:30px;height:30px;border-radius:9px;font-size:17px;font-weight:700;flex:none">+</button>'+
-        '<button onclick="venduDispo(\''+l.id+'\')" title="Retirer (vendu / épuisé)" style="background:none;border:none;color:#c3cabb;font-size:16px;padding:4px 4px">&times;</button></div>';
-    }).join('');
-  });
-  $('#stocklist').innerHTML=out;
+  var sec=document.getElementById('pending-sec');var el=document.getElementById('stocklist');
+  if(d.length){
+    if(sec)sec.style.display='';if(el)el.style.display='';
+    var groups={};d.forEach(function(l){var f=l.fam||'Autres';(groups[f]=groups[f]||[]).push(l);});
+    var fams=Object.keys(groups).sort(function(a,b){return a.localeCompare(b,'fr');});
+    var out='';
+    fams.forEach(function(f){var arr=groups[f];
+      out+='<div class="famh">'+f+'<em>'+arr.reduce(function(s,l){return s+(l.qty||0);},0)+'</em></div>';
+      out+=arr.map(function(l){return '<div class="ent"><div class="av" style="background:#8fb996">'+fmt(l.qty)+'</div><div class="m"><b>'+l.nom+'</b><span>'+oriLabel(l.origine)+' · local, pas encore sur le site</span></div>'+
+        '<button onclick="dispoMinus(\''+l.id+'\')" style="background:#eceadf;border:none;color:#8a8571;width:30px;height:30px;border-radius:9px;font-size:17px;font-weight:700;flex:none">&minus;</button>'+
+        '<button onclick="dispoPlus(\''+l.id+'\')" style="background:var(--sage-soft);border:none;color:#2f6b41;width:30px;height:30px;border-radius:9px;font-size:17px;font-weight:700;flex:none">+</button>'+
+        '<button onclick="venduDispo(\''+l.id+'\')" style="background:none;border:none;color:#c3cabb;font-size:16px;padding:4px 4px">&times;</button></div>';}).join('');
+    });
+    if(el)el.innerHTML=out;
+  } else { if(sec)sec.style.display='none'; if(el)el.style.display='none'; }
+  loadSite(false);
 }
 function dispoMinus(id){var e=ELEV.dispo.filter(function(x){return x.id===id;})[0];if(!e)return;e.qty--;mergeLot(e.nom,e.fam,e.origine,'Vendable',1);if(e.qty<=0)ELEV.dispo=ELEV.dispo.filter(function(x){return x.id!==id;});saveElev();renderStock();}
 function dispoPlus(id){var e=ELEV.dispo.filter(function(x){return x.id===id;})[0];if(!e)return;var src=ELEV.lots.filter(function(l){return l.nom===e.nom&&l.origine===e.origine&&l.qty>0;}).sort(function(a,b){return elRank(b.stade)-elRank(a.stade);})[0];if(!src){toast('Plus rien en réserve pour '+e.nom);return;}src.qty--;if(src.qty<=0)ELEV.lots=ELEV.lots.filter(function(x){return x.id!==src.id;});e.qty++;saveElev();renderStock();}
@@ -728,6 +719,43 @@ function renderRepiq(r){var bt=bTot(r);var rac=bt.rr||0;var done=r.repique||0;va
    '<p class="hint" style="margin-top:8px">Saisis la quantité réellement repiquée (les survivants) : elle entre au stock global en origine « bouture », stade Godet.</p>';
 }
 function repiquerBouture(id){var r=state.records.find(function(x){return x.id===id;});if(!r)return;var q=parseInt((document.getElementById('repq')||{}).value||'0',10)||0;if(q<=0){toast('Quantité repiquée ?');return;}mergeLot(r.v,r.famille,'bouture','Godet',q);r.repique=(r.repique||0)+q;saveDB();saveElev();renderRepiq(r);toast(fmt(q)+' × '+r.v+' repiqué → stock global');}
+
+// ---- STOCK DU SITE (lecture live PrestaShop via Make, lecture seule) ----
+var SITE_STOCK_URL='https://hook.eu1.make.com/dc4j7t9kva8p8xs7sahpe8941jme6dbd';
+var SITE_PROD_URL='https://hook.eu1.make.com/xztxjdmk2ku3dhxsaqh3a3t1npe2emgc';
+var SITE={loaded:false,loading:false,ts:0,rows:[],err:null};
+function pname(n){if(n==null)return '';if(typeof n==='string')return n;if(Array.isArray(n))return (n[0]&&n[0].value)||'';if(n.value)return n.value;return String(n);}
+function loadSite(force){
+  if(SITE.loading)return;
+  if(SITE.loaded&&!force){renderSite();return;}
+  SITE.loading=true;SITE.err=null;renderSite();
+  Promise.all([
+    fetch(SITE_STOCK_URL).then(function(r){return r.json();}),
+    fetch(SITE_PROD_URL).then(function(r){return r.json();})
+  ]).then(function(res){
+    var stock=(res[0]&&res[0].stock_availables)||[];
+    var prods=(res[1]&&res[1].products)||[];
+    var nameById={},priceById={};
+    prods.forEach(function(p){nameById[p.id]=pname(p.name);priceById[p.id]=parseFloat(p.price)||0;});
+    var agg={};stock.forEach(function(s){var pid=s.id_product;var q=parseInt(s.quantity,10)||0;if(!agg[pid])agg[pid]={id:pid,nom:nameById[pid]||('Produit '+pid),qty:0,prix:priceById[pid]||0};agg[pid].qty+=q;});
+    var rows=Object.keys(agg).map(function(k){return agg[k];}).filter(function(x){return x.qty>0;});
+    rows.sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});
+    SITE.rows=rows;SITE.loaded=true;SITE.loading=false;SITE.ts=Date.now();renderSite();
+  }).catch(function(e){SITE.loading=false;SITE.err=(e&&e.message)||'connexion';renderSite();});
+}
+function renderSite(){
+  var st=document.getElementById('site-status');var kpi=document.getElementById('site-kpi');var list=document.getElementById('site-list');
+  if(!list)return;
+  if(SITE.loading){if(kpi)kpi.innerHTML='';if(st)st.textContent='Lecture du site…';list.innerHTML=emptyBox('Lecture de ton stock en direct…');return;}
+  if(SITE.err){if(st)st.textContent='';if(kpi)kpi.innerHTML='';list.innerHTML=emptyBox('Impossible de lire le site pour l\'instant — appuie sur « Rafraîchir ».');return;}
+  if(!SITE.loaded){if(st)st.textContent='';list.innerHTML=emptyBox('Appuie sur « Rafraîchir » pour lire ton stock en direct depuis le site.');return;}
+  var rows=SITE.rows;var tot=rows.reduce(function(s,r){return s+r.qty;},0);var val=rows.reduce(function(s,r){return s+r.qty*r.prix;},0);
+  if(kpi)kpi.innerHTML='<div class="kpi hero"><div class="n">'+fmt(tot)+'</div><div class="l">plants en vente sur le site</div></div>'+
+    '<div class="kpi"><div class="n">'+fmt(rows.length)+'</div><div class="l">Variétés en vente</div></div>'+
+    '<div class="kpi"><div class="n">'+fmt(Math.round(val))+' €</div><div class="l">Valeur du stock en ligne</div></div>';
+  if(st){var dt=new Date(SITE.ts);st.textContent='À jour · '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);}
+  list.innerHTML=rows.length?rows.map(function(r){return '<div class="ent"><div class="av" style="background:#3f7350">'+fmt(r.qty)+'</div><div class="m"><b>'+r.nom+'</b><span>'+(r.prix?r.prix.toFixed(2)+' €':'')+'</span></div></div>';}).join(''):emptyBox('Aucun produit en stock sur le site.');
+}
 
 function init(){
   loadUserVars();loadSemences();loadElevage();
