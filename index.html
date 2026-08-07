@@ -514,11 +514,23 @@ function showRang(c){document.querySelectorAll('.orch .col').forEach(x=>x.classL
   $('#rangdetail').innerHTML=`<div class="sec" style="margin-top:16px">Ligne ${c} · ${nv} variétés · ${tot} arbres</div><div class="card">${items.length?html:emptyBox('Ligne vide')}</div>`;}
 
 // ---- CATALOGUE ----
-function renderCat(){const q=($('#q').value||'').toLowerCase();let list=DATA.varietes.filter(v=>v.nom.toLowerCase().includes(q));
-  const groups={};list.forEach(v=>{(groups[v.fam]=groups[v.fam]||[]).push(v);});
-  const fams=Object.keys(groups).sort((a,b)=>a==='Autres'?1:b==='Autres'?-1:a.localeCompare(b));
-  let html='';fams.forEach(f=>{const arr=groups[f].sort((a,b)=>a.nom.localeCompare(b.nom,'fr'));html+=`<div class="famh">${f}<em>${arr.length}</em></div>`+arr.map(v=>`<div class="ent"><div class="av" style="background:${colors[hashi(f)]}">${initials(v.nom)}</div><div class="m"><b>${v.nom}</b><span>${f}</span></div><div class="price">${v.prix?v.prix+' €':'—'}</div></div>`).join('');});
-  $('#vlist').innerHTML=list.length?html:emptyBox('Aucune variété');}
+function renderCat(){
+  if(typeof loadSite==='function')loadSite(false);
+  var q=($('#q').value||'').toLowerCase();
+  var seen={};
+  var list=DATA.varietes.filter(function(v){return v.nom.toLowerCase().indexOf(q)>=0;});
+  var groups={};DATA.varietes.forEach(function(v){seen[normName(v.nom)]=1;});
+  list.forEach(function(v){(groups[v.fam]=groups[v.fam]||[]).push(v);});
+  var site=(typeof SITE!=='undefined'&&SITE.allProducts)?SITE.allProducts:[];
+  var sd={};site.forEach(function(p){var k=normName(p.nom);if(!seen[k]&&p.nom.toLowerCase().indexOf(q)>=0)sd[k]=p;});
+  var siteOnly=Object.keys(sd).map(function(k){return sd[k];}).sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});
+  var fams=Object.keys(groups).sort(function(a,b){return a==='Autres'?1:b==='Autres'?-1:a.localeCompare(b);});
+  var html='';
+  fams.forEach(function(f){var arr=groups[f].sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});html+='<div class="famh">'+f+'<em>'+arr.length+'</em></div>'+arr.map(function(v){return '<div class="ent"><div class="av" style="background:'+colors[hashi(f)]+'">'+initials(v.nom)+'</div><div class="m"><b>'+esc(v.nom)+'</b><span>'+f+'</span></div><div class="price">'+(v.prix?v.prix+' €':'—')+'</div></div>';}).join('');});
+  if(siteOnly.length){html+='<div class="famh">Autres produits du site<em>'+siteOnly.length+'</em></div>'+siteOnly.map(function(v){return '<div class="ent"><div class="av" style="background:#3f7350">'+initials(v.nom)+'</div><div class="m"><b>'+esc(v.nom)+'</b><span>sur le site</span></div><div class="price">'+(v.prix?v.prix.toFixed(2)+' €':'—')+'</div></div>';}).join('');}
+  var total=list.length+siteOnly.length;
+  $('#vlist').innerHTML=total?html:emptyBox('Aucune variété');
+}
 
 // ---- ADD ----
 function fillForm(){
@@ -783,11 +795,11 @@ function loadSite(force){
     var stock=(res[0]&&res[0].stock_availables)||[];
     var prods=(res[1]&&res[1].products)||[];
     var nameById={},priceById={};
-    prods.forEach(function(p){nameById[p.id]=pname(p.name);priceById[p.id]=parseFloat(p.price)||0;});
+    prods.forEach(function(p){nameById[p.id]=pname(p.name);priceById[p.id]=parseFloat(p.price)||0;});SITE.allProducts=prods.map(function(p){return {nom:pname(p.name),prix:parseFloat(p.price)||0};}).filter(function(x){return x.nom;});
     var agg={};stock.forEach(function(s){var pid=s.id_product;var q=parseInt(s.quantity,10)||0;if(!agg[pid])agg[pid]={id:pid,nom:nameById[pid]||('Produit '+pid),qty:0,prix:priceById[pid]||0};agg[pid].qty+=q;});
     var rows=Object.keys(agg).map(function(k){return agg[k];}).filter(function(x){return x.qty>0;});
     rows.sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});
-    SITE.rows=rows;SITE.byName={};rows.forEach(function(x){SITE.byName[normName(x.nom)]=x;});SITE.loaded=true;SITE.loading=false;SITE.ts=Date.now();renderSite();try{var ve=document.getElementById('v-elevage');if(ve&&ve.classList.contains('on'))renderElevage();}catch(e){}
+    SITE.rows=rows;SITE.byName={};rows.forEach(function(x){SITE.byName[normName(x.nom)]=x;});SITE.loaded=true;SITE.loading=false;SITE.ts=Date.now();renderSite();try{var ve=document.getElementById('v-elevage');if(ve&&ve.classList.contains('on'))renderElevage();}catch(e){}try{var vc=document.getElementById('v-cat');if(vc&&vc.classList.contains('on'))renderCat();}catch(e){}
   }).catch(function(e){SITE.loading=false;SITE.err=(e&&e.message)||'connexion';renderSite();});
 }
 function renderSite(){
