@@ -348,7 +348,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.03';
+const APP_VERSION='2026.04';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -908,7 +908,55 @@ function renderElevage(){
 }
 function promoteElev(id){var l=ELEV.lots.filter(function(x){return x.id===id;})[0];if(!l)return;var i=STADES.indexOf(l.stade);if(i<STADES.length-1){l.stade=STADES[i+1];saveElev();renderElevage();if(l.stade==='Vendable')toast(l.nom+' est prêt — mets-le en vente');}}
 function delElev(id){ELEV.lots=ELEV.lots.filter(function(x){return x.id!==id;});saveElev();renderElevage();}
-function mettreEnVente(id){var l=ELEV.lots.filter(function(x){return x.id===id;})[0];if(!l)return;addDispo(l.nom,l.fam,l.origine,l.qty||0);ELEV.lots=ELEV.lots.filter(function(x){return x.id!==id;});saveElev();renderElevage();toast(fmt(l.qty)+' × '+l.nom+' → disponible (site)');}
+function mettreEnVente(id){sellSheet(id);}
+function sellSheet(id){
+  var l=ELEV.lots.filter(function(x){return x.id===id;})[0];if(!l)return;
+  var b='<div class="grab"></div><h2 style="font-size:20px;margin:0 0 2px">'+esc(l.nom)+'</h2>';
+  if(!SITE.loaded){
+    b+='<p class="dsub">Le stock du site n\'est pas encore chargé.</p>'
+      +'<button class="save" style="margin-top:10px" onclick="loadSite(true);closeSheet();toast(\'Lecture du stock du site… rouvre dans un instant\')">Charger le stock du site</button>'
+      +'<button class="ghost" onclick="closeSheet()">Fermer</button>';
+    $('#sheetbody').innerHTML=b;$('#ov').classList.add('show');return;
+  }
+  var site=siteMatch(l.nom);
+  if(!site){
+    b+='<p class="dsub">Pas de produit correspondant sur le site.</p>'
+      +'<p class="hint">Cette variété n\'existe pas encore comme produit sur pepinsperdus.fr, donc impossible d\'y pousser du stock. Il faut d\'abord créer le produit sur le site.</p>'
+      +'<button class="ghost" style="margin-top:10px" onclick="closeSheet()">Fermer</button>';
+  }else{
+    b+='<p class="dsub">Stock global : '+fmt(l.qty)+' &middot; sur le site : '+fmt(site.qty)+'</p>'
+      +'<div class="mrow" style="margin-top:8px"><span>Quantité à mettre en vente</span><input class="miniinp" id="sell-n" inputmode="numeric" value="'+(l.qty||0)+'" style="width:96px"></div>'
+      +'<div class="sec" style="margin-top:10px">Effet</div><div id="sell-calc"></div>'
+      +'<button class="save" id="sell-go" style="margin-top:12px" onclick="confirmSell(this,\''+l.id+'\')">Confirmer &middot; envoyer au site</button>'
+      +'<button class="ghost" onclick="closeSheet()">Annuler</button>';
+  }
+  $('#sheetbody').innerHTML=b;
+  if(site){
+    var upd=function(){var n=parseInt(($('#sell-n').value)||'0',10)||0;if(n<0)n=0;if(n>l.qty)n=l.qty;
+      $('#sell-calc').innerHTML='<div class="mrow"><span>Site</span><b>'+fmt(site.qty)+' &rarr; '+fmt(site.qty+n)+'</b></div><div class="mrow"><span>Stock global</span><b>'+fmt(l.qty)+' &rarr; '+fmt(l.qty-n)+'</b></div>';};
+    upd();document.getElementById('sell-n').addEventListener('input',upd);
+  }
+  $('#ov').classList.add('show');
+}
+function confirmSell(btn,id){
+  var l=ELEV.lots.filter(function(x){return x.id===id;})[0];if(!l)return;
+  var site=siteMatch(l.nom);if(!site){toast('Pas de produit site');return;}
+  var n=parseInt(($('#sell-n').value)||'0',10)||0;if(n<=0){toast('Indique une quantité');return;}
+  if(n>l.qty)n=l.qty;
+  var said=site.said;var newQty=(site.qty||0)+n;
+  if(said==null){toast('Identifiant stock site introuvable');return;}
+  if(btn){btn.disabled=true;btn.textContent='Envoi au site…';}
+  fetch(SITE_WRITE_URL+'?id='+encodeURIComponent(said)+'&qty='+encodeURIComponent(newQty)+'&t='+Date.now())
+   .then(function(r){return r.text();})
+   .then(function(){return fetch(SITE_STOCK_URL+'?t='+Date.now()).then(function(r){return r.json();});})
+   .then(function(j){var e=((j&&j.stock_availables)||[]).filter(function(x){return String(x.id)===String(said);})[0];
+     if(!e||Number(e.quantity)!==newQty){throw new Error('non confirmé');}
+     l.qty-=n;if(l.qty<=0)ELEV.lots=ELEV.lots.filter(function(x){return x.id!==l.id;});
+     saveElev();site.qty=newQty;
+     closeSheet();renderElevage();toast(fmt(n)+' × '+l.nom+' mis en vente sur le site ✓');
+   })
+   .catch(function(){if(btn){btn.disabled=false;btn.textContent='Confirmer · envoyer au site';}toast('Échec ou site non confirmé — réessaie');});
+}
 function addElev(){var nom=($('#el-nom').value||'').trim();if(!nom){toast('Nom de la plante ?');return;}var qty=parseInt(($('#el-qty').value||'0'),10)||0;var fam=($('#el-fam').value||'').trim();var four=($('#el-four').value||'').trim();elForm.dispo=$('#el-dispo').value;ELEV.lots.push({id:uid(),nom:nom,fam:fam||'Autres',qty:qty,origine:elForm.origine,stade:elForm.stade,dispo:elForm.dispo,four:four});saveElev();$('#el-nom').value='';$('#el-fam').value='';$('#el-four').value='';$('#el-qty').value='10';renderElevage();toast('Lot ajouté · '+nom);}
 
 function renderStock(){
@@ -942,6 +990,7 @@ function renderRepiq(r){var bt=bTot(r);var rac=bt.rr||0;var done=r.repique||0;va
 function repiquerBouture(id){var r=state.records.find(function(x){return x.id===id;});if(!r)return;var q=parseInt((document.getElementById('repq')||{}).value||'0',10)||0;if(q<=0){toast('Quantité repiquée ?');return;}mergeLot(r.v,r.famille,'bouture','Godet',q);r.repique=(r.repique||0)+q;saveDB();saveElev();renderRepiq(r);toast(fmt(q)+' × '+r.v+' repiqué → stock global');}
 
 // ---- STOCK DU SITE (lecture live PrestaShop via Make, lecture seule) ----
+var SITE_WRITE_URL='https://hook.eu1.make.com/ku1e4a29go1b3hbev52xc999abt68exu';
 var SITE_STOCK_URL='https://hook.eu1.make.com/dc4j7t9kva8p8xs7sahpe8941jme6dbd';
 var SITE_PROD_URL='https://hook.eu1.make.com/xztxjdmk2ku3dhxsaqh3a3t1npe2emgc';
 var SITE={loaded:false,loading:false,ts:0,rows:[],err:null};
@@ -958,7 +1007,7 @@ function loadSite(force){
     var prods=(res[1]&&res[1].products)||[];
     var nameById={},priceById={};
     prods.forEach(function(p){nameById[p.id]=pname(p.name);priceById[p.id]=parseFloat(p.price)||0;});SITE.allProducts=prods.map(function(p){return {nom:pname(p.name),prix:parseFloat(p.price)||0};}).filter(function(x){return x.nom;});
-    var agg={};stock.forEach(function(s){var pid=s.id_product;var q=parseInt(s.quantity,10)||0;if(!agg[pid])agg[pid]={id:pid,nom:nameById[pid]||('Produit '+pid),qty:0,prix:priceById[pid]||0};agg[pid].qty+=q;});
+    var agg={};stock.forEach(function(s){var pid=s.id_product;var q=parseInt(s.quantity,10)||0;if(!agg[pid])agg[pid]={id:pid,said:s.id,nom:nameById[pid]||('Produit '+pid),qty:0,prix:priceById[pid]||0};agg[pid].qty+=q;});
     var rows=Object.keys(agg).map(function(k){return agg[k];}).filter(function(x){return x.qty>0;});
     rows.sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});
     SITE.rows=rows;SITE.byName={};rows.forEach(function(x){SITE.byName[normName(x.nom)]=x;});SITE.loaded=true;SITE.loading=false;SITE.ts=Date.now();renderSite();try{var ve=document.getElementById('v-elevage');if(ve&&ve.classList.contains('on'))renderElevage();}catch(e){}try{var vc=document.getElementById('v-cat');if(vc&&vc.classList.contains('on'))renderCat();}catch(e){}
