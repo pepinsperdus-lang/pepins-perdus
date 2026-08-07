@@ -284,10 +284,11 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
     </section>
 
     <section class="view" id="v-stock">
-      <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Disponible &middot; site</h2>
-      <p class="dsub">Ton vrai stock en vente sur pepinsperdus.fr, lu en direct.</p>
+      <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Stock</h2>
+      <p class="dsub">Le vrai stock en vente sur pepinsperdus.fr. Modifie avec &minus;/+ ou tape la quantité, puis ✓ pour l'envoyer au site.</p>
       <div class="kgrid" id="site-kpi"></div>
       <div class="togglerow" style="justify-content:space-between;margin-top:12px"><span id="site-status" style="color:var(--muted);font-weight:600;font-size:12.5px"></span><button class="ghost" style="width:auto;margin:0;padding:8px 15px" onclick="loadSite(true)">&#8635; Rafra&icirc;chir</button></div>
+      <div class="search" style="margin-top:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="site-q" placeholder="Rechercher un produit…" oninput="renderSite()"></div>
       <div class="seg" id="site-filter" style="margin-top:10px"></div>
       <div class="card" id="site-list"></div>
       <div class="sec" id="pending-sec" style="margin-top:18px;display:none">En attente de mise en vente (local)</div>
@@ -348,7 +349,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.04';
+const APP_VERSION='2026.05';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -442,7 +443,7 @@ function renderHome(){
   };
   var Q=[
    {i:'plan',l:'Planches de culture',v:'plan'},{i:'cat',l:'Catalogue',v:'cat'},{i:'stats',l:'Stats',v:'stats'},
-   {i:'elev',l:'Stock global',v:'elevage'},{i:'stock',l:'Disponible',v:'stock'},{i:'task',l:'Tâches',v:'todo'},
+   {i:'elev',l:'Stock global',v:'elevage'},{i:'stock',l:'Stock',v:'stock'},{i:'task',l:'Tâches',v:'todo'},
    {i:'arros',l:'Arrosages',v:'arrosage'},{i:'pieds',l:'Pieds-mères',v:'pieds'}
   ];
   $('#quick').innerHTML=Q.map(function(q){
@@ -1010,7 +1011,7 @@ function loadSite(force){
     var agg={};stock.forEach(function(s){var pid=s.id_product;var q=parseInt(s.quantity,10)||0;if(!agg[pid])agg[pid]={id:pid,said:s.id,nom:nameById[pid]||('Produit '+pid),qty:0,prix:priceById[pid]||0};agg[pid].qty+=q;});
     var rows=Object.keys(agg).map(function(k){return agg[k];}).filter(function(x){return x.qty>0;});
     rows.sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});
-    SITE.rows=rows;SITE.byName={};rows.forEach(function(x){SITE.byName[normName(x.nom)]=x;});SITE.loaded=true;SITE.loading=false;SITE.ts=Date.now();renderSite();try{var ve=document.getElementById('v-elevage');if(ve&&ve.classList.contains('on'))renderElevage();}catch(e){}try{var vc=document.getElementById('v-cat');if(vc&&vc.classList.contains('on'))renderCat();}catch(e){}
+    SITE.rows=rows;SITE.byName={};SITE.bySaid={};rows.forEach(function(x){SITE.byName[normName(x.nom)]=x;SITE.bySaid[x.said]=x;});SITE.loaded=true;SITE.loading=false;SITE.ts=Date.now();renderSite();try{var ve=document.getElementById('v-elevage');if(ve&&ve.classList.contains('on'))renderElevage();}catch(e){}try{var vc=document.getElementById('v-cat');if(vc&&vc.classList.contains('on'))renderCat();}catch(e){}
   }).catch(function(e){SITE.loading=false;SITE.err=(e&&e.message)||'connexion';renderSite();});
 }
 function renderSite(){
@@ -1029,8 +1030,43 @@ function renderSite(){
     '<div class="kpi">'+(low?'<span class="chip down">'+low+'</span>':'')+'<div class="n" style="'+(low?'color:#b0512c':'')+'">'+fmt(low)+'</div><div class="l">Stock faible (≤5)</div></div>';
   if(st){var dt=new Date(SITE.ts);st.textContent='À jour · '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);}
   if(fil)fil.innerHTML=[['all','Tout'],['low','Stock faible']].map(function(f){return '<button class="'+(siteFilter===f[0]?'on':'')+'" onclick="siteFilter=\''+f[0]+'\';renderSite()">'+f[1]+'</button>';}).join('');
-  var view=(siteFilter==='low')?rows.filter(function(r){return r.qty<=15;}).slice().sort(function(a,b){return a.qty-b.qty;}):rows;
-  list.innerHTML=view.length?view.map(function(r){var isBig=r.qty>=BIG;var c=isBig?'#3f7350':(r.qty<=5?'#b0512c':(r.qty<=15?'#c99a3c':'#3f7350'));var av=isBig?'∞':fmt(r.qty);var tag=isBig?'stock élevé · ':(r.qty<=5?'⚠ stock faible · ':(r.qty<=15?'à surveiller · ':''));return '<div class="ent"><div class="av" style="background:'+c+';font-size:'+(isBig?'18px':'12px')+'">'+av+'</div><div class="m"><b>'+esc(r.nom)+'</b><span>'+tag+(r.prix?r.prix.toFixed(2)+' €':'')+'</span></div></div>';}).join(''):emptyBox('Aucun produit dans ce filtre.');
+  var q=((document.getElementById('site-q')||{}).value||'').toLowerCase();
+  var view=(siteFilter==='low')?rows.filter(function(r){return r.qty<=15;}):rows.slice();
+  if(q)view=view.filter(function(r){return (r.nom||'').toLowerCase().indexOf(q)>=0;});
+  view.sort(function(a,b){return (a.nom||'').localeCompare(b.nom||'','fr');});
+  var btnStyle='display:none;align-items:center;justify-content:center;flex:none;margin-left:6px;background:#3f7350;color:#fff;border:none;width:34px;height:34px;border-radius:9px;font-size:16px;font-weight:700';
+  list.innerHTML=view.length?view.map(function(r){
+    var isBig=r.qty>=BIG;
+    var c=isBig?'#3f7350':(r.qty<=5?'#b0512c':(r.qty<=15?'#c99a3c':'#3f7350'));
+    return '<div class="ent">'
+     +'<div class="av" style="background:'+c+';font-size:12px">'+(isBig?'∞':fmt(r.qty))+'</div>'
+     +'<div class="m" style="min-width:0"><b>'+esc(r.nom)+'</b><span>'+(r.prix?r.prix.toFixed(2)+' € · ':'')+'site</span></div>'
+     +'<div class="stepper" style="flex:none;margin-left:auto"><button onclick="siteStep('+r.said+',-1)">&minus;</button>'
+     +'<input id="sq-'+r.said+'" inputmode="numeric" value="'+r.qty+'" style="width:50px;text-align:center" oninput="siteDirty('+r.said+')"><button onclick="siteStep('+r.said+',1)">+</button></div>'
+     +'<button id="sw-'+r.said+'" onclick="siteWrite('+r.said+')" title="Envoyer au site" style="'+btnStyle+'">✓</button>'
+    +'</div>';
+  }).join(''):emptyBox('Aucun produit'+(q?' pour « '+esc(q)+' »':'.'));
+}
+function siteStep(said,d){var i=document.getElementById('sq-'+said);if(!i)return;var v=(parseInt(i.value,10)||0)+d;if(v<0)v=0;i.value=v;siteDirty(said);}
+function siteDirty(said){var i=document.getElementById('sq-'+said);var b=document.getElementById('sw-'+said);var r=SITE.bySaid&&SITE.bySaid[said];if(!i||!b||!r)return;var v=parseInt(i.value,10);b.style.display=(!isNaN(v)&&v!==r.qty)?'inline-flex':'none';}
+function deductGlobal(nom,delta){var key=normName(nom);var left=delta;var changed=false;ELEV.lots.slice().sort(function(a,b){return (b.qty||0)-(a.qty||0);}).forEach(function(l){if(left<=0)return;if(normName(l.nom)===key&&(l.qty||0)>0){var take=Math.min(l.qty,left);l.qty-=take;left-=take;changed=true;}});if(changed){ELEV.lots=ELEV.lots.filter(function(l){return (l.qty||0)>0;});saveElev();}return delta-left;}
+function siteWrite(said){
+  var r=SITE.bySaid&&SITE.bySaid[said];if(!r)return;
+  var i=document.getElementById('sq-'+said);var b=document.getElementById('sw-'+said);
+  var newQty=parseInt(i&&i.value,10);if(isNaN(newQty)||newQty<0){toast('Quantité invalide');return;}
+  if(newQty===r.qty){if(b)b.style.display='none';return;}
+  var oldQty=r.qty;var delta=newQty-oldQty;
+  if(b){b.disabled=true;b.textContent='…';}
+  fetch(SITE_WRITE_URL+'?id='+encodeURIComponent(said)+'&qty='+encodeURIComponent(newQty)+'&t='+Date.now())
+   .then(function(x){return x.text();})
+   .then(function(){return fetch(SITE_STOCK_URL+'?t='+Date.now()).then(function(x){return x.json();});})
+   .then(function(j){var e=((j&&j.stock_availables)||[]).filter(function(x){return String(x.id)===String(said);})[0];
+     if(!e||Number(e.quantity)!==newQty)throw new Error('nc');
+     r.qty=newQty;var msg=r.nom+' → '+newQty+' sur le site';
+     if(delta>0){var ded=deductGlobal(r.nom,delta);if(ded>0)msg+=' · stock global −'+ded;}
+     renderSite();toast(msg+' ✓');
+   })
+   .catch(function(){if(b){b.disabled=false;b.textContent='✓';}toast('Échec ou site non confirmé — réessaie');});
 }
 
 // ---- utilitaires ----
@@ -1192,7 +1228,7 @@ function piedsSet(l,v){PIEDS.notes[l]=v;savePieds();}
 
 // ---- MENU ☰ ----
 var siteFilter='all';
-var MENU=[['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Disponible · site'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['cat','Catalogue variétés'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
+var MENU=[['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['cat','Catalogue variétés'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
 function openMenu(){var b=document.getElementById('menu-body');if(!b)return;b.innerHTML=MENU.map(function(m){return '<div class="ent" onclick="menuGo(\''+m[0]+'\')" style="cursor:pointer"><div class="m"><b>'+m[1]+'</b></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c3cabf" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></div>';}).join('');document.getElementById('menuov').classList.add('show');}
 function closeMenu(){var o=document.getElementById('menuov');if(o)o.classList.remove('show');}
 function menuGo(v){closeMenu();if(v==='__settings__'){openSettings();return;}show(v);}
