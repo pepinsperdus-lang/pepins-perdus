@@ -389,7 +389,7 @@ function renderHome(){
   $('#kpis').innerHTML=
    '<div class="kpi hero"><div class="n">'+fmt(eff+bn)+'</div><div class="l">plants en production · greffes + boutures</div></div>'+
    '<div class="kpi"><div class="n">'+fmt(nv)+'</div><div class="l">Variétés en production</div></div>'+
-   '<div class="kpi"><span class="chip up">▲</span><div class="n">'+taux+' %</div><div class="l">Reprise greffe moyenne</div></div>';
+   '<div class="kpi"><span class="chip up">▲</span><div class="n">'+taux+' %</div><div class="l">Reprise greffe moyenne</div></div>'+(function(){try{var src=(typeof piedsGet==='function')?piedsGet():PIEDSDATA;var tp=0,z=0;for(var k in src){z++;tp+=src[k].length;}return '<div class="kpi" onclick="show(\'pieds\')" style="grid-column:1/3;cursor:pointer;display:flex;align-items:center;justify-content:space-between"><div><div class="n">'+fmt(tp)+'</div><div class="l">pieds-mères au plan · '+z+' zones</div></div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c3cabb" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></div>';}catch(e){return '';}})();
   var chev='<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>';
   var flux=[
    {n:'Greffes',pct:taux,w:(eff?Math.round(rep/eff*100):0),sub:fmt(rep)+' repris / '+fmt(eff)+' greffés',v:'greffes'},
@@ -904,64 +904,102 @@ function piedsFam(z){var zl=(z||'').toLowerCase();
 function piedsNat(a,b){return a.replace(/\d+/g,function(n){return n.padStart(6,'0');}).localeCompare(b.replace(/\d+/g,function(n){return n.padStart(6,'0');}),'fr');}
 function piedsFamMap(){var m={};Object.keys(PIEDSDATA).forEach(function(z){var f=piedsFam(z);(m[f]=m[f]||[]).push(z);});Object.keys(m).forEach(function(f){m[f].sort(piedsNat);});return m;}
 function escAttr(s){return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function niceName(s){s=(s||'').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+function piedsGet(){return (PIEDS&&PIEDS.plan)?PIEDS.plan:PIEDSDATA;}
+function piedsEnsure(){if(!PIEDS.plan){PIEDS.plan=JSON.parse(JSON.stringify(PIEDSDATA));}return PIEDS.plan;}
+var piedsEdit=null,piedsAdd=null,piedsAddType='P';
+function piedsStartEdit(z,idx){piedsEdit={z:z,idx:idx};piedsAdd=null;renderPieds();}
+function piedsStartAdd(z){piedsAdd=z;piedsEdit=null;piedsAddType='P';renderPieds();}
+function piedsCancel(){piedsEdit=null;piedsAdd=null;renderPieds();}
+function piedsAddTypeSet(t){piedsAddType=t;renderPieds();}
+function piedsNextPos(arr){var pref='',max=0,any=false;arr.forEach(function(r){if(r[2]==='P'&&r[0]){var m=/^(\D*)(\d+)$/.exec(r[0]);if(m){any=true;pref=m[1];var n=parseInt(m[2],10);if(n>max)max=n;}}});return any?(pref+(max+1)):'1';}
+function piedsDoAdd(z){var el=document.getElementById('pa-nom');var nom=el?(el.value||'').trim():'';if(!nom){toast('Indique le nom de la plante');return;}var plan=piedsEnsure();if(!plan[z])plan[z]=[];if(piedsAddType==='A'){var att=(document.getElementById('pa-att')||{}).value||'';plan[z].push(['',nom,'A',att]);}else{plan[z].push([piedsNextPos(plan[z]),nom,'P','']);}savePieds();piedsAdd=null;toast('Plante ajoutée');renderPieds();}
+function piedsDoEdit(){if(!piedsEdit)return;var el=document.getElementById('pe-nom');var nom=el?(el.value||'').trim():'';if(!nom){toast('Le nom est vide');return;}var plan=piedsEnsure();if(plan[piedsEdit.z]&&plan[piedsEdit.z][piedsEdit.idx]){plan[piedsEdit.z][piedsEdit.idx][1]=nom;savePieds();}piedsEdit=null;toast('Modifié');renderPieds();}
+function piedsDelRow(){if(!piedsEdit)return;var plan=piedsEnsure();var z=piedsEdit.z,idx=piedsEdit.idx;if(plan[z]&&plan[z][idx])plan[z].splice(idx,1);savePieds();piedsEdit=null;toast('Supprimé');renderPieds();}
+function piedsEditForm(z){var src=piedsGet();var row=src[z]&&src[z][piedsEdit.idx];if(!row)return '';var isA=row[2]==='A';
+  return '<div class="card" style="padding:12px;margin:6px 0 10px;background:#f4f8f1">'+
+    '<div style="font-weight:700;margin-bottom:8px">Modifier &middot; '+(isA?'plante associée':'plante principale')+'</div>'+
+    '<input id="pe-nom" class="inp" value="'+esc(row[1])+'" style="margin-bottom:10px">'+
+    '<div style="display:flex;gap:8px"><button onclick="piedsDoEdit()" style="flex:1;background:#3f7350;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;font-family:inherit">Enregistrer</button>'+
+    '<button onclick="piedsDelRow()" style="background:#fbeeea;color:#b0512c;border:none;border-radius:10px;padding:10px 14px;font-weight:700;font-family:inherit">Supprimer</button>'+
+    '<button onclick="piedsCancel()" style="background:#eef1ec;border:none;border-radius:10px;padding:10px 14px;font-family:inherit">Annuler</button></div></div>';}
+function piedsAddForm(z){var src=piedsGet();var princ=(src[z]||[]).map(function(r,i){return r[2]==='P'?{pos:r[0],nom:r[1]}:null;}).filter(Boolean);
+  var attSel=(piedsAddType==='A')?('<select id="pa-att" class="inp" style="margin-bottom:10px">'+(princ.length?princ.map(function(p){return '<option value="'+esc(p.pos)+'">'+esc((p.pos?p.pos+' · ':'')+niceName(p.nom))+'</option>';}).join(''):'<option value="">(aucune principale)</option>')+'</select>'):'';
+  return '<div class="card" style="padding:12px;margin:6px 0 10px;background:#eef5ea">'+
+    '<div style="font-weight:700;margin-bottom:8px">Ajouter une plante &middot; '+esc(z)+'</div>'+
+    '<input id="pa-nom" class="inp" placeholder="Nom de la plante" style="margin-bottom:10px">'+
+    '<div style="display:flex;gap:8px;margin-bottom:10px">'+
+      '<button onclick="piedsAddTypeSet(\'P\')" style="flex:1;border:none;border-radius:10px;padding:9px;font-weight:700;font-family:inherit;'+(piedsAddType==='P'?'background:#3f7350;color:#fff':'background:#e4ebe0;color:#3f7350')+'">Principale</button>'+
+      '<button onclick="piedsAddTypeSet(\'A\')" style="flex:1;border:none;border-radius:10px;padding:9px;font-weight:700;font-family:inherit;'+(piedsAddType==='A'?'background:#c99a3c;color:#fff':'background:#e4ebe0;color:#8a6d1f')+'">Associée</button>'+
+    '</div>'+attSel+
+    '<div style="display:flex;gap:8px"><button onclick="piedsDoAdd(\''+escAttr(z)+'\')" style="flex:1;background:#3f7350;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;font-family:inherit">Ajouter</button>'+
+    '<button onclick="piedsCancel()" style="background:#eef1ec;border:none;border-radius:10px;padding:10px 14px;font-family:inherit">Annuler</button></div></div>';}
+function piedsZoneTools(z){
+  var h='';
+  if(piedsEdit&&piedsEdit.z===z)h+=piedsEditForm(z);
+  if(piedsAdd===z)h+=piedsAddForm(z);
+  else h+='<button onclick="piedsStartAdd(\''+escAttr(z)+'\')" style="display:block;width:100%;background:#eef3ea;color:#3f7350;border:1px dashed #b8ccb5;border-radius:11px;padding:10px;font-weight:700;font-family:inherit;margin:6px 0 8px;cursor:pointer">＋ Ajouter une plante</button>';
+  return h;
+}
 function piedsPositions(arr){
   var byPos={},order=[],loose=[];
-  arr.forEach(function(row){var p=row[0],n=row[1],t=row[2];if(t==='P'){var key=p||('#'+order.length);if(!byPos[key]){byPos[key]={pos:p,nom:n,assoc:[]};order.push(key);}else{byPos[key].nom=n;}}});
-  arr.forEach(function(row){var n=row[1],t=row[2],r=row[3];if(t==='A'){if(r&&byPos[r])byPos[r].assoc.push(n);else loose.push(n);}});
+  arr.forEach(function(row,i){if(row[2]==='P'){var key=row[0]||('#'+i);if(!byPos[key]){byPos[key]={pos:row[0],nom:row[1],pidx:i,assoc:[]};order.push(key);}else{byPos[key].nom=row[1];byPos[key].pidx=i;}}});
+  arr.forEach(function(row,i){if(row[2]==='A'){var r=row[3];if(r&&byPos[r])byPos[r].assoc.push({nom:row[1],idx:i});else loose.push({nom:row[1],idx:i});}});
   return {positions:order.map(function(k){return byPos[k];}),loose:loose};
 }
 function piedsFamToggle(f){piedsOpenFam=(piedsOpenFam===f?null:f);piedsOpenZone=null;renderPieds();}
 function piedsZoneToggle(z){piedsOpenZone=(piedsOpenZone===z?null:z);renderPieds();}
-function piedsEntry(P){
-  var chips=P.assoc.length?('<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">'+P.assoc.map(function(a){return '<span style="background:#f0e6cf;color:#8a6d1f;border-radius:7px;padding:2px 8px;font-size:11.5px;font-weight:600">'+esc(a)+'</span>';}).join('')+'</div>'):'';
-  return '<div class="ent" style="align-items:flex-start"><div class="av" style="background:#4b7f52;font-size:11.5px;font-weight:700;flex:none">'+esc(P.pos||'●')+'</div><div class="m"><b>'+esc(P.nom)+'</b>'+chips+'</div></div>';
+function piedsEntry(P,z){
+  var chips=P.assoc.length?('<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">'+P.assoc.map(function(a){return '<span onclick="piedsStartEdit(\''+escAttr(z)+'\','+a.idx+')" style="background:#f0e6cf;color:#8a6d1f;border-radius:7px;padding:2px 8px;font-size:11.5px;font-weight:600;cursor:pointer">'+esc(niceName(a.nom))+'</span>';}).join('')+'</div>'):'';
+  return '<div class="ent" style="align-items:flex-start"><div class="av" style="background:#4b7f52;font-size:11.5px;font-weight:700;flex:none">'+esc(P.pos||'●')+'</div><div class="m"><b>'+esc(niceName(P.nom))+'</b>'+chips+'</div><button onclick="piedsStartEdit(\''+escAttr(z)+'\','+P.pidx+')" style="background:none;border:none;color:#9fb0a2;font-size:15px;padding:4px 8px;flex:none;cursor:pointer" title="Modifier">✎</button></div>';
 }
 function renderPieds(){
   var list=document.getElementById('piedslist');if(!list)return;
   var kpiEl=document.getElementById('pieds-kpi');
   if(typeof PIEDSDATA==='undefined'){list.innerHTML=emptyBox('Aucune donnée');return;}
+  var DATASRC=piedsGet();
   var q=((document.getElementById('pieds-q')||{}).value||'').trim().toLowerCase();
-  var zones=Object.keys(PIEDSDATA);
-  var totPlants=0,totPos=0;zones.forEach(function(z){PIEDSDATA[z].forEach(function(r){totPlants++;if(r[2]==='P')totPos++;});});
+  var zones=Object.keys(DATASRC);
+  var totPlants=0,totPos=0;zones.forEach(function(z){DATASRC[z].forEach(function(r){totPlants++;if(r[2]==='P')totPos++;});});
   if(kpiEl)kpiEl.innerHTML='<div style="display:flex;gap:10px;margin:2px 2px 12px">'+
     '<div class="kpi hero" style="flex:1"><div class="n">'+fmt(totPlants)+'</div><div class="l">plantes au plan</div></div>'+
     '<div class="kpi" style="flex:1"><div class="n">'+fmt(totPos)+'</div><div class="l">emplacements</div></div>'+
     '<div class="kpi" style="flex:1"><div class="n">'+fmt(zones.length)+'</div><div class="l">zones</div></div></div>';
   if(q){
     var res=[];
-    zones.forEach(function(z){PIEDSDATA[z].forEach(function(r){if(r[1].toLowerCase().indexOf(q)>=0||z.toLowerCase().indexOf(q)>=0)res.push({z:z,pos:r[0],nom:r[1],t:r[2],r:r[3]});});});
+    zones.forEach(function(z){DATASRC[z].forEach(function(r){if(r[1].toLowerCase().indexOf(q)>=0||z.toLowerCase().indexOf(q)>=0)res.push({z:z,pos:r[0],nom:r[1],t:r[2],r:r[3]});});});
     if(!res.length){list.innerHTML=emptyBox('Rien pour « '+esc(q)+' ».');return;}
-    var h='<div class="famh">Résultats<em>'+res.length+'</em></div>';
-    h+=res.slice(0,400).map(function(x){
+    var hq='<div class="famh">Résultats<em>'+res.length+'</em></div>';
+    hq+=res.slice(0,400).map(function(x){
       var badge=x.t==='P'?'<span class="pill pg">Principal</span>':'<span class="pill pm">Associé</span>';
       var loc=x.z+(x.pos?' · '+x.pos:(x.r?' · rattaché '+x.r:''));
-      return '<div class="ent"><div class="av" style="background:'+(x.t==='P'?'#4b7f52':'#c99a3c')+';font-size:13px;flex:none">'+(x.t==='P'?'●':'+')+'</div><div class="m"><b>'+esc(x.nom)+'</b><span>'+badge+' &middot; '+esc(loc)+'</span></div></div>';
+      return '<div class="ent"><div class="av" style="background:'+(x.t==='P'?'#4b7f52':'#c99a3c')+';font-size:13px;flex:none">'+(x.t==='P'?'●':'+')+'</div><div class="m"><b>'+esc(niceName(x.nom))+'</b><span>'+badge+' &middot; '+esc(x.z)+(x.pos?' · '+esc(x.pos):'')+'</span></div></div>';
     }).join('');
-    if(res.length>400)h+='<p class="hint" style="text-align:center;padding:8px 0">'+(res.length-400)+' autres résultats… précise ta recherche.</p>';
-    list.innerHTML=h;return;
+    if(res.length>400)hq+='<p class="hint" style="text-align:center;padding:8px 0">'+(res.length-400)+' autres résultats… précise ta recherche.</p>';
+    list.innerHTML=hq;return;
   }
-  var fm=piedsFamMap();
+  var fm={};zones.forEach(function(z){var f=piedsFam(z);(fm[f]=fm[f]||[]).push(z);});Object.keys(fm).forEach(function(f){fm[f].sort(piedsNat);});
   var fams=PIEDS_FAM_ORDER.filter(function(f){return fm[f];});
   Object.keys(fm).forEach(function(f){if(fams.indexOf(f)<0)fams.push(f);});
   var h='';
   fams.forEach(function(f){
-    var zs=fm[f];var np=0,npos=0;zs.forEach(function(z){PIEDSDATA[z].forEach(function(r){np++;if(r[2]==='P')npos++;});});
+    var zs=fm[f];var np=0;zs.forEach(function(z){np+=DATASRC[z].length;});
     var fopen=(piedsOpenFam===f);
     h+='<div class="famh" style="cursor:pointer;background:'+(fopen?'#e7efe3':'')+'" onclick="piedsFamToggle(\''+escAttr(f)+'\')"><span style="display:inline-flex;align-items:center;gap:8px"><span style="color:#4b7f52">'+(fopen?'▾':'▸')+'</span>'+esc(f)+'</span><em>'+fmt(np)+' plantes'+(zs.length>1?' · '+zs.length+' zones':'')+'</em></div>';
     if(fopen){
       zs.forEach(function(z){
-        var arr=PIEDSDATA[z];var zpos=arr.filter(function(r){return r[2]==='P';}).length;var zopen=(piedsOpenZone===z);
+        var arr=DATASRC[z];var zpos=arr.filter(function(r){return r[2]==='P';}).length;var zopen=(piedsOpenZone===z);
         if(zs.length===1&&f!=='Autres'){
-          // famille mono-zone (Verger, Asiminiers) : ouvrir direct
           var pp=piedsPositions(arr);
-          h+=pp.positions.map(piedsEntry).join('');
-          if(pp.loose.length)h+='<div class="ent"><div class="av" style="background:#c99a3c;flex:none">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp.loose.join(', '))+'</span></div></div>';
+          h+='<div style="padding:2px 2px 0">'+piedsZoneTools(z)+'</div>';
+          h+=pp.positions.map(function(P){return piedsEntry(P,z);}).join('');
+          if(pp.loose.length)h+='<div class="ent"><div class="av" style="background:#c99a3c;flex:none">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp.loose.map(function(a){return niceName(a.nom);}).join(', '))+'</span></div></div>';
         }else{
           h+='<div class="ent" style="cursor:pointer;background:'+(zopen?'#f4f8f1':'')+'" onclick="piedsZoneToggle(\''+escAttr(z)+'\')"><div class="av" style="background:'+(zopen?'#4b7f52':'#9fbfa6')+';font-size:12px;flex:none">'+(zopen?'▾':'▸')+'</div><div class="m"><b>'+esc(z)+'</b><span>'+zpos+' emplacement'+(zpos>1?'s':'')+'</span></div></div>';
           if(zopen){
             var pp2=piedsPositions(arr);
-            h+='<div style="padding-left:10px;border-left:3px solid #e2ebdd;margin:2px 0 6px">'+pp2.positions.map(piedsEntry).join('')+'</div>';
-            if(pp2.loose.length)h+='<div class="ent"><div class="av" style="background:#c99a3c;flex:none">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp2.loose.join(', '))+'</span></div></div>';
+            h+='<div style="padding-left:10px;border-left:3px solid #e2ebdd;margin:2px 0 6px">'+piedsZoneTools(z)+pp2.positions.map(function(P){return piedsEntry(P,z);}).join('')+'</div>';
+            if(pp2.loose.length)h+='<div class="ent"><div class="av" style="background:#c99a3c;flex:none">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp2.loose.map(function(a){return niceName(a.nom);}).join(', '))+'</span></div></div>';
           }
         }
       });
