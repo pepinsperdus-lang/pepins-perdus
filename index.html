@@ -340,7 +340,7 @@ const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026};
 
 function loadDB(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return mem;}
-function saveDB(){try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){mem=state.records.slice();}}
+function saveDB(){try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){mem=state.records.slice();}cloudPush('records',state.records);}
 function seed(){return DATA.greffes.concat(DATA.boutures).map(r=>Object.assign({},r));}
 function uid(){return 'u'+Math.random().toString(36).slice(2,9);}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
@@ -697,12 +697,12 @@ function resetData(){state.records=seed();saveDB();closeSheet();toast('Données 
 })();
 // ---- variétés ajoutées par l'utilisateur (persistées) ----
 function loadUserVars(){try{const a=JSON.parse(localStorage.getItem(UVKEY)||'[]');if(Array.isArray(a)){a.forEach(uv=>{if(uv&&uv.nom&&!DATA.varietes.some(v=>v.nom===uv.nom)){DATA.varietes.push(uv);priceMap[uv.nom]=uv.prix||0;}});}}catch(e){}}
-function addUserVariety(nom,fam){if(DATA.varietes.some(v=>v.nom===nom))return;const nv={nom:nom,fam:fam||'Autres',prix:0};DATA.varietes.push(nv);priceMap[nom]=0;try{const a=JSON.parse(localStorage.getItem(UVKEY)||'[]');a.push(nv);localStorage.setItem(UVKEY,JSON.stringify(a));}catch(e){}}
+function addUserVariety(nom,fam){if(DATA.varietes.some(v=>v.nom===nom))return;const nv={nom:nom,fam:fam||'Autres',prix:0};DATA.varietes.push(nv);priceMap[nom]=0;try{const a=JSON.parse(localStorage.getItem(UVKEY)||'[]');a.push(nv);localStorage.setItem(UVKEY,JSON.stringify(a));cloudPush('uservars',a);}catch(e){}}
 
 // ---- SEMENCES (liste à cocher par année) ----
 var SEM={cat:[],bought:{}};
 function loadSemences(){try{const s=JSON.parse(localStorage.getItem(SEMKEY)||'null');if(s&&s.cat){SEM=s;return;}}catch(e){}SEM={cat:DATA.semences.map((x,i)=>({id:'s'+i,nom:x.nom,fam:x.fam})),bought:{}};saveSem();}
-function saveSem(){try{localStorage.setItem(SEMKEY,JSON.stringify(SEM));}catch(e){}}
+function saveSem(){try{localStorage.setItem(SEMKEY,JSON.stringify(SEM));}catch(e){}cloudPush('sem',SEM);}
 function renderSemences(){
   const y=state.semYear;const b=SEM.bought[y]=SEM.bought[y]||{};
   const ys=[...new Set(yearsBand().concat([state.semYear]))].sort();
@@ -739,7 +739,7 @@ function loadElevage(){
   if(mig.length){mig.forEach(function(l){addDispo(l.nom,l.fam,l.origine,l.qty||0);});ELEV.lots=ELEV.lots.filter(function(l){return !l.inStock;});changed=true;}
   if(changed)saveElev();
 }
-function saveElev(){try{localStorage.setItem('pepins_elevage_v1',JSON.stringify(ELEV));}catch(e){}}
+function saveElev(){try{localStorage.setItem('pepins_elevage_v1',JSON.stringify(ELEV));}catch(e){}cloudPush('elevage',ELEV);}
 function elRank(st){var i=STADES.indexOf(st);return i<0?0:i;}
 function elReady(l){return l.stade==='Vendable';}
 function elSoon(l){if(elReady(l))return true;var r=elRank(l.stade);return r>=STADES.length-3||l.dispo==='Bientôt (cette saison)'||l.dispo==='Automne 2026';}
@@ -881,7 +881,7 @@ function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'
 // ---- TO-DO pépinière ----
 var TODO={items:[]};
 function loadTodo(){try{var s=JSON.parse(localStorage.getItem('pepins_todo_v1')||'null');if(s&&s.items){TODO=s;return;}}catch(e){}TODO={items:[]};}
-function saveTodo(){try{localStorage.setItem('pepins_todo_v1',JSON.stringify(TODO));}catch(e){}}
+function saveTodo(){try{localStorage.setItem('pepins_todo_v1',JSON.stringify(TODO));}catch(e){}cloudPush('todo',TODO);}
 function renderTodo(){
   var open=TODO.items.filter(function(t){return !t.done;});
   var el=document.getElementById('todo-count');if(el)el.textContent=open.length?open.length+' tâche'+(open.length>1?'s':'')+' à faire':'Rien à faire 🎉';
@@ -898,7 +898,7 @@ function delTodo(id){TODO.items=TODO.items.filter(function(x){return x.id!==id;}
 var AR_ZONES=['Serre classique 1','Serre classique 2','GAG serre classique','Serre evo 1','Serre evo 2','GAG serre evo','Planche de culture','Verger 1','Verger 2 (marcottière)','Serre casado','Verger 3','Aspersion plateforme'];
 var ARROS={zones:{}};
 function loadArros(){try{var s=JSON.parse(localStorage.getItem('pepins_arros_v1')||'null');if(s&&s.zones){ARROS=s;}}catch(e){}if(!ARROS.zones)ARROS.zones={};AR_ZONES.forEach(function(z){if(!ARROS.zones[z])ARROS.zones[z]={prog:'',on:true};});saveArros();}
-function saveArros(){try{localStorage.setItem('pepins_arros_v1',JSON.stringify(ARROS));}catch(e){}}
+function saveArros(){try{localStorage.setItem('pepins_arros_v1',JSON.stringify(ARROS));}catch(e){}cloudPush('arros',ARROS);}
 function renderArros(){
   var on=AR_ZONES.filter(function(z){return ARROS.zones[z]&&ARROS.zones[z].on;}).length;
   var c=document.getElementById('arros-count');if(c)c.textContent=on+' / '+AR_ZONES.length+' zones actives';
@@ -914,7 +914,7 @@ function arrosToggle(z){if(!ARROS.zones[z])ARROS.zones[z]={prog:'',on:true};ARRO
 var PM_LIGNES=['A','B','C','D','E','F'];
 var PIEDS={notes:{}};
 function loadPieds(){try{var s=JSON.parse(localStorage.getItem('pepins_pieds_v1')||'null');if(s&&s.notes){PIEDS=s;}}catch(e){}if(!PIEDS.notes)PIEDS.notes={};}
-function savePieds(){try{localStorage.setItem('pepins_pieds_v1',JSON.stringify(PIEDS));}catch(e){}}
+function savePieds(){try{localStorage.setItem('pepins_pieds_v1',JSON.stringify(PIEDS));}catch(e){}cloudPush('pieds',PIEDS);}
 var piedsOpenZone=null,piedsOpenFam=null;
 var PIEDS_FAM_ORDER=['Verger','Asiminiers','Serres','Pergolas','Rangs','Forêt-jardin','Autres'];
 function piedsFam(z){var zl=(z||'').toLowerCase();
@@ -1074,6 +1074,64 @@ function renderHormones(){
   var l=document.getElementById('hormlist');if(l)l.innerHTML=out||emptyBox('Aucune variété.');
 }
 
+
+// ================= CLOUD PARTAGÉ + CODE D'ACCÈS =================
+var CLOUD_W='https://hook.eu1.make.com/2d7f26wqd0013chvvkf6ljpaha5pep7k';
+var CLOUD_R='https://hook.eu1.make.com/2ytluqx1no6ircowiedwq5sohxs78j0m';
+var APP_CODE='pepins2026';
+var CLOUD_KEYS=[
+ {k:'records',ls:KEY,get:function(){return state.records;}},
+ {k:'elevage',ls:'pepins_elevage_v1',get:function(){return ELEV;}},
+ {k:'todo',ls:'pepins_todo_v1',get:function(){return TODO;}},
+ {k:'arros',ls:'pepins_arros_v1',get:function(){return ARROS;}},
+ {k:'sem',ls:SEMKEY,get:function(){return SEM;}},
+ {k:'pieds',ls:'pepins_pieds_v1',get:function(){return PIEDS;}},
+ {k:'uservars',ls:UVKEY,get:function(){try{return JSON.parse(localStorage.getItem(UVKEY)||'[]');}catch(e){return [];}}}
+];
+var _cloudEmpty={},_cloudTimers={};
+function cloudPush(key,obj){
+  try{
+    var body='k='+encodeURIComponent(key)+'&v='+encodeURIComponent(JSON.stringify(obj));
+    clearTimeout(_cloudTimers[key]);
+    _cloudTimers[key]=setTimeout(function(){
+      try{fetch(CLOUD_W,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:body,keepalive:true}).catch(function(){});}catch(e){}
+      var d=document.getElementById('cloud-dot');if(d){d.style.background='#3f7350';setTimeout(function(){if(d)d.style.background='#c3cabb';},900);}
+    },600);
+  }catch(e){}
+}
+function cloudBoot(){
+  if(typeof fetch!=='function')return Promise.resolve();
+  return Promise.all(CLOUD_KEYS.map(function(e){
+    return fetch(CLOUD_R+'?k='+e.k+'&t='+Date.now()).then(function(r){return r.text();}).then(function(t){
+      if(t&&t.trim()&&t.trim()!=='null'){try{JSON.parse(t);localStorage.setItem(e.ls,t);}catch(_){_cloudEmpty[e.k]=1;}}
+      else{_cloudEmpty[e.k]=1;}
+    }).catch(function(){});
+  }));
+}
+function cloudSeedEmpty(){CLOUD_KEYS.forEach(function(e){if(_cloudEmpty[e.k]){try{cloudPush(e.k,e.get());}catch(_){}}});}
+function gateTry(){
+  var i=document.getElementById('gate-in');var v=(i&&i.value||'').trim();
+  if(v===APP_CODE){try{localStorage.setItem('pepins_ok','1');}catch(e){}var g=document.getElementById('gate');if(g)g.parentNode.removeChild(g);}
+  else{var er=document.getElementById('gate-err');if(er)er.textContent='Code incorrect';if(i){i.value='';i.focus();}}
+}
+function showGateIfNeeded(){
+  try{if(localStorage.getItem('pepins_ok')==='1')return;}catch(e){}
+  var d=document.createElement('div');d.id='gate';
+  d.style.cssText='position:fixed;inset:0;z-index:99999;background:linear-gradient(150deg,#2c5c3d,#1f3d2b);display:flex;align-items:center;justify-content:center;padding:24px';
+  d.innerHTML='<div style="background:#fff;border-radius:20px;padding:26px 22px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.3)">'+
+   '<div style="font-size:40px">🌱</div>'+
+   '<h2 style="margin:8px 0 4px;font-family:Fraunces,serif;color:#2c5c3d">Pépins Perdus</h2>'+
+   '<p style="color:#7c8a7f;font-size:14px;margin:0 0 16px">Entre le code d\'accès de l\'équipe</p>'+
+   '<input id="gate-in" type="password" placeholder="Code" style="width:100%;box-sizing:border-box;padding:12px;border:1px solid #d8e0d4;border-radius:12px;font-size:16px;text-align:center;margin-bottom:10px">'+
+   '<div id="gate-err" style="color:#b0512c;font-size:13px;min-height:16px;margin-bottom:6px"></div>'+
+   '<button onclick="gateTry()" style="width:100%;background:#3f7350;color:#fff;border:none;border-radius:12px;padding:13px;font-size:15px;font-weight:700;font-family:inherit">Entrer</button></div>';
+  (document.body||document.documentElement).appendChild(d);
+  setTimeout(function(){var i=document.getElementById('gate-in');if(i){i.focus();i.addEventListener('keydown',function(e){if(e.key==='Enter')gateTry();});}},60);
+}
+var _booted=false;
+function appBoot(){if(_booted)return;_booted=true;try{init();}catch(e){}try{cloudSeedEmpty();}catch(e){}}
+// ===============================================================
+
 function init(){
   loadUserVars();loadSemences();loadElevage();loadTodo();loadArros();loadPieds();
   let db=loadDB();
@@ -1086,7 +1144,9 @@ function init(){
   }
   fillForm();renderHome();
 }
-init();
+showGateIfNeeded();
+setTimeout(appBoot,4500);
+cloudBoot().then(appBoot).catch(appBoot);
 </script>
 </body>
 </html>
