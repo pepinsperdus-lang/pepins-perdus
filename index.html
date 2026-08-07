@@ -891,14 +891,31 @@ var PM_LIGNES=['A','B','C','D','E','F'];
 var PIEDS={notes:{}};
 function loadPieds(){try{var s=JSON.parse(localStorage.getItem('pepins_pieds_v1')||'null');if(s&&s.notes){PIEDS=s;}}catch(e){}if(!PIEDS.notes)PIEDS.notes={};}
 function savePieds(){try{localStorage.setItem('pepins_pieds_v1',JSON.stringify(PIEDS));}catch(e){}}
-var piedsOpenZone=null;
+var piedsOpenZone=null,piedsOpenFam=null;
+var PIEDS_FAM_ORDER=['Verger','Asiminiers','Serres','Pergolas','Rangs','Forêt-jardin','Autres'];
+function piedsFam(z){var zl=(z||'').toLowerCase();
+  if(z==='Verger')return 'Verger';
+  if(z==='Asiminier')return 'Asiminiers';
+  if(zl.indexOf('serre')===0)return 'Serres';
+  if(zl.indexOf('foret jardin')===0||zl.indexOf('forêt jardin')===0)return 'Forêt-jardin';
+  if(zl.indexOf('rang')===0)return 'Rangs';
+  if(zl.indexOf('pergola')===0)return 'Pergolas';
+  return 'Autres';}
+function piedsNat(a,b){return a.replace(/\d+/g,function(n){return n.padStart(6,'0');}).localeCompare(b.replace(/\d+/g,function(n){return n.padStart(6,'0');}),'fr');}
+function piedsFamMap(){var m={};Object.keys(PIEDSDATA).forEach(function(z){var f=piedsFam(z);(m[f]=m[f]||[]).push(z);});Object.keys(m).forEach(function(f){m[f].sort(piedsNat);});return m;}
+function escAttr(s){return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function piedsPositions(arr){
   var byPos={},order=[],loose=[];
   arr.forEach(function(row){var p=row[0],n=row[1],t=row[2];if(t==='P'){var key=p||('#'+order.length);if(!byPos[key]){byPos[key]={pos:p,nom:n,assoc:[]};order.push(key);}else{byPos[key].nom=n;}}});
   arr.forEach(function(row){var n=row[1],t=row[2],r=row[3];if(t==='A'){if(r&&byPos[r])byPos[r].assoc.push(n);else loose.push(n);}});
   return {positions:order.map(function(k){return byPos[k];}),loose:loose};
 }
-function piedsToggle(z){piedsOpenZone=(piedsOpenZone===z?null:z);renderPieds();}
+function piedsFamToggle(f){piedsOpenFam=(piedsOpenFam===f?null:f);piedsOpenZone=null;renderPieds();}
+function piedsZoneToggle(z){piedsOpenZone=(piedsOpenZone===z?null:z);renderPieds();}
+function piedsEntry(P){
+  var chips=P.assoc.length?('<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">'+P.assoc.map(function(a){return '<span style="background:#f0e6cf;color:#8a6d1f;border-radius:7px;padding:2px 8px;font-size:11.5px;font-weight:600">'+esc(a)+'</span>';}).join('')+'</div>'):'';
+  return '<div class="ent" style="align-items:flex-start"><div class="av" style="background:#4b7f52;font-size:11.5px;font-weight:700;flex:none">'+esc(P.pos||'●')+'</div><div class="m"><b>'+esc(P.nom)+'</b>'+chips+'</div></div>';
+}
 function renderPieds(){
   var list=document.getElementById('piedslist');if(!list)return;
   var kpiEl=document.getElementById('pieds-kpi');
@@ -910,32 +927,47 @@ function renderPieds(){
     '<div class="kpi hero" style="flex:1"><div class="n">'+fmt(totPlants)+'</div><div class="l">plantes au plan</div></div>'+
     '<div class="kpi" style="flex:1"><div class="n">'+fmt(totPos)+'</div><div class="l">emplacements</div></div>'+
     '<div class="kpi" style="flex:1"><div class="n">'+fmt(zones.length)+'</div><div class="l">zones</div></div></div>';
-  var html='';
   if(q){
     var res=[];
     zones.forEach(function(z){PIEDSDATA[z].forEach(function(r){if(r[1].toLowerCase().indexOf(q)>=0||z.toLowerCase().indexOf(q)>=0)res.push({z:z,pos:r[0],nom:r[1],t:r[2],r:r[3]});});});
     if(!res.length){list.innerHTML=emptyBox('Rien pour « '+esc(q)+' ».');return;}
-    html+='<div class="famh">Résultats<em>'+res.length+'</em></div>';
-    html+=res.slice(0,400).map(function(x){
+    var h='<div class="famh">Résultats<em>'+res.length+'</em></div>';
+    h+=res.slice(0,400).map(function(x){
       var badge=x.t==='P'?'<span class="pill pg">Principal</span>':'<span class="pill pm">Associé</span>';
       var loc=x.z+(x.pos?' · '+x.pos:(x.r?' · rattaché '+x.r:''));
-      return '<div class="ent"><div class="av" style="background:'+(x.t==='P'?'#4b7f52':'#c99a3c')+';font-size:13px">'+(x.t==='P'?'●':'+')+'</div><div class="m"><b>'+esc(x.nom)+'</b><span>'+badge+' &middot; '+esc(loc)+'</span></div></div>';
+      return '<div class="ent"><div class="av" style="background:'+(x.t==='P'?'#4b7f52':'#c99a3c')+';font-size:13px;flex:none">'+(x.t==='P'?'●':'+')+'</div><div class="m"><b>'+esc(x.nom)+'</b><span>'+badge+' &middot; '+esc(loc)+'</span></div></div>';
     }).join('');
-    if(res.length>400)html+='<p class="hint" style="text-align:center;padding:8px 0">'+(res.length-400)+' autres résultats… précise ta recherche.</p>';
-    list.innerHTML=html;return;
+    if(res.length>400)h+='<p class="hint" style="text-align:center;padding:8px 0">'+(res.length-400)+' autres résultats… précise ta recherche.</p>';
+    list.innerHTML=h;return;
   }
-  zones.forEach(function(z){
-    var arr=PIEDSDATA[z];var np=arr.filter(function(r){return r[2]==='P';}).length;var open=(piedsOpenZone===z);
-    html+='<div class="famh" style="cursor:pointer" onclick="piedsToggle(\''+z.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">'+esc(z)+'<em>'+np+' empl. '+(open?'▾':'▸')+'</em></div>';
-    if(open){
-      var pp=piedsPositions(arr);
-      pp.positions.forEach(function(P){
-        html+='<div class="ent"><div class="av" style="background:#4b7f52;font-size:12px">'+esc(P.pos||'●')+'</div><div class="m"><b>'+esc(P.nom)+'</b>'+(P.assoc.length?'<span>+ '+esc(P.assoc.join(', '))+'</span>':'')+'</div></div>';
+  var fm=piedsFamMap();
+  var fams=PIEDS_FAM_ORDER.filter(function(f){return fm[f];});
+  Object.keys(fm).forEach(function(f){if(fams.indexOf(f)<0)fams.push(f);});
+  var h='';
+  fams.forEach(function(f){
+    var zs=fm[f];var np=0,npos=0;zs.forEach(function(z){PIEDSDATA[z].forEach(function(r){np++;if(r[2]==='P')npos++;});});
+    var fopen=(piedsOpenFam===f);
+    h+='<div class="famh" style="cursor:pointer;background:'+(fopen?'#e7efe3':'')+'" onclick="piedsFamToggle(\''+escAttr(f)+'\')"><span style="display:inline-flex;align-items:center;gap:8px"><span style="color:#4b7f52">'+(fopen?'▾':'▸')+'</span>'+esc(f)+'</span><em>'+fmt(np)+' plantes'+(zs.length>1?' · '+zs.length+' zones':'')+'</em></div>';
+    if(fopen){
+      zs.forEach(function(z){
+        var arr=PIEDSDATA[z];var zpos=arr.filter(function(r){return r[2]==='P';}).length;var zopen=(piedsOpenZone===z);
+        if(zs.length===1&&f!=='Autres'){
+          // famille mono-zone (Verger, Asiminiers) : ouvrir direct
+          var pp=piedsPositions(arr);
+          h+=pp.positions.map(piedsEntry).join('');
+          if(pp.loose.length)h+='<div class="ent"><div class="av" style="background:#c99a3c;flex:none">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp.loose.join(', '))+'</span></div></div>';
+        }else{
+          h+='<div class="ent" style="cursor:pointer;background:'+(zopen?'#f4f8f1':'')+'" onclick="piedsZoneToggle(\''+escAttr(z)+'\')"><div class="av" style="background:'+(zopen?'#4b7f52':'#9fbfa6')+';font-size:12px;flex:none">'+(zopen?'▾':'▸')+'</div><div class="m"><b>'+esc(z)+'</b><span>'+zpos+' emplacement'+(zpos>1?'s':'')+'</span></div></div>';
+          if(zopen){
+            var pp2=piedsPositions(arr);
+            h+='<div style="padding-left:10px;border-left:3px solid #e2ebdd;margin:2px 0 6px">'+pp2.positions.map(piedsEntry).join('')+'</div>';
+            if(pp2.loose.length)h+='<div class="ent"><div class="av" style="background:#c99a3c;flex:none">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp2.loose.join(', '))+'</span></div></div>';
+          }
+        }
       });
-      if(pp.loose.length)html+='<div class="ent"><div class="av" style="background:#c99a3c">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp.loose.join(', '))+'</span></div></div>';
     }
   });
-  list.innerHTML=html;
+  list.innerHTML=h;
 }
 function piedsSet(l,v){PIEDS.notes[l]=v;savePieds();}
 
