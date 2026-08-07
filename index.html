@@ -121,7 +121,12 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
 .doses{display:grid;grid-template-columns:1fr auto auto;gap:8px 10px;align-items:center}
 .doses .hd{font-size:11px;color:var(--muted);font-weight:600;text-align:center}.doses .dl{font-size:13px;font-weight:600}
 .badge{display:inline-block;background:var(--sage-soft);color:#2f6b41;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
-.qgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.qgrid .ql{position:relative}.ql .soon{position:absolute;top:5px;right:5px;font-size:8px;font-weight:700;background:#eceadf;color:#8a8571;padding:2px 5px;border-radius:9px;letter-spacing:.2px}.fsub{font-size:11px;color:var(--muted);margin-top:5px;font-weight:500}.chev{color:#c3cabf;flex:none}</style>
+.qgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.qgrid .ql{position:relative}.ql .soon{position:absolute;top:5px;right:5px;font-size:8px;font-weight:700;background:#eceadf;color:#8a8571;padding:2px 5px;border-radius:9px;letter-spacing:.2px}.fsub{font-size:11px;color:var(--muted);margin-top:5px;font-weight:500}.chev{color:#c3cabf;flex:none}.ac{position:absolute;left:0;right:0;top:100%;z-index:40;background:#fff;border:1px solid #e2e8df;border-radius:12px;box-shadow:0 12px 26px rgba(31,61,43,.16);max-height:240px;overflow:auto;margin-top:4px;display:none}
+.ac.show{display:block}
+.ac div{padding:10px 12px;font-size:14px;cursor:pointer;border-bottom:1px solid #f2f5ef}
+.ac div:last-child{border-bottom:none}
+.ac div small{color:var(--muted,#7c8a7f);font-weight:500}
+</style>
 </head>
 <body>
 <div class="phone">
@@ -179,9 +184,8 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <h2 style="margin:2px 2px 2px;font-size:22px;font-weight:600">Nouvelle saisie</h2>
       <p class="dsub">Quelques taps, les mains dans la terre.</p>
       <div class="seg"><button class="on" data-mode="greffe" onclick="mode('greffe',this)">🌿 Greffe</button><button data-mode="bouture" onclick="mode('bouture',this)">🪴 Bouture</button></div>
-      <div class="field"><label>Famille</label><select class="inp" id="f-fam" onchange="fillVarByFam()"></select></div>
-      <div class="field"><label>Variété</label><select class="inp" id="f-var" onchange="onVarChange()"></select>
-        <input class="inp" id="f-varnew" style="display:none;margin-top:8px" placeholder="Nom de la nouvelle variété"></div>
+      <div class="field" style="position:relative"><label>Variété</label><input class="inp" id="f-var" autocomplete="off" oninput="acVar()" onfocus="acVar()" onblur="acBlur('f-var-ac')" placeholder="Tape une variété…"><div class="ac" id="f-var-ac"></div></div>
+      <div class="field" style="position:relative"><label>Espèce / famille</label><input class="inp" id="f-fam" autocomplete="off" oninput="acFam()" onfocus="acFam()" onblur="acBlur('f-fam-ac')" placeholder="Tape une espèce…"><div class="ac" id="f-fam-ac"></div></div>
       <div class="field"><label>Année</label><div class="seg" id="f-year"></div></div>
       <div id="greffe-fields">
         <div class="field"><label>Porte-greffe</label><select class="inp" id="f-pg"></select></div>
@@ -563,10 +567,27 @@ function renderCat(){
 }
 
 // ---- ADD ----
+function acEscQ(s){return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
+function acVar(){var q=($('#f-var').value||'').trim().toLowerCase();var box=document.getElementById('f-var-ac');if(!box)return;if(!q){box.classList.remove('show');box.innerHTML='';return;}
+  var famSel=($('#f-fam').value||'').trim().toLowerCase();
+  var list=DATA.varietes.filter(function(v){return v.nom.toLowerCase().indexOf(q)>=0;});
+  list.sort(function(a,b){var ap=a.nom.toLowerCase().indexOf(q),bp=b.nom.toLowerCase().indexOf(q);if(famSel){var af=(a.fam||'').toLowerCase()===famSel?0:1,bf=(b.fam||'').toLowerCase()===famSel?0:1;if(af!==bf)return af-bf;}if(ap!==bp)return ap-bp;return a.nom.localeCompare(b.nom,'fr');});
+  list=list.slice(0,10);
+  if(!list.length){box.classList.remove('show');box.innerHTML='';return;}
+  box.innerHTML=list.map(function(v){return '<div onmousedown="acPickVar(\''+acEscQ(v.nom)+'\')">'+esc(v.nom)+' <small>· '+esc(v.fam||'—')+'</small></div>';}).join('');
+  box.classList.add('show');}
+function acPickVar(nom){var v=DATA.varietes.find(function(x){return x.nom===nom;});$('#f-var').value=nom;if(v&&v.fam)$('#f-fam').value=v.fam;var b=document.getElementById('f-var-ac');if(b)b.classList.remove('show');var b2=document.getElementById('f-fam-ac');if(b2)b2.classList.remove('show');}
+function acFam(){var q=($('#f-fam').value||'').trim().toLowerCase();var box=document.getElementById('f-fam-ac');if(!box)return;
+  var seen={},fams=[];DATA.varietes.forEach(function(v){var f=v.fam;if(f&&!seen[f]){seen[f]=1;fams.push(f);}});fams.sort(function(a,b){return a.localeCompare(b,'fr');});
+  var list=(q?fams.filter(function(f){return f.toLowerCase().indexOf(q)>=0;}):fams).slice(0,14);
+  if(!list.length){box.classList.remove('show');box.innerHTML='';return;}
+  box.innerHTML=list.map(function(f){return '<div onmousedown="acPickFam(\''+acEscQ(f)+'\')">'+esc(f)+'</div>';}).join('');
+  box.classList.add('show');}
+function acPickFam(f){$('#f-fam').value=f;var b=document.getElementById('f-fam-ac');if(b)b.classList.remove('show');}
+function acBlur(id){setTimeout(function(){var b=document.getElementById(id);if(b)b.classList.remove('show');},180);}
 function fillForm(){
   const fams=[...new Set(DATA.varietes.map(v=>v.fam))].filter(f=>f!=='Autres').sort((a,b)=>a.localeCompare(b));
-  $('#f-fam').innerHTML='<option value="Autres">Autre</option>'+fams.map(f=>`<option>${f}</option>`).join('');
-  fillVarByFam();
+  $('#f-fam').value='';$('#f-var').value='';['f-var-ac','f-fam-ac'].forEach(function(id){var b=document.getElementById(id);if(b){b.classList.remove('show');b.innerHTML='';}});
   renderAddYear();
   let h='<option value="Autre">Autre…</option>';for(const grp in DATA.pg){h+=`<optgroup label="${grp.replace('PG ','')}">`+DATA.pg[grp].map(x=>`<option>${x}</option>`).join('')+'</optgroup>';}$('#f-pg').innerHTML=h;
   $('#f-rang').innerHTML=['A','B','C','D','E','F'].map(r=>`<button class="opt${r===state.rang?' sel':''}" onclick="pickTog('rang','${r}',this)">${r}</button>`).join('');
@@ -581,9 +602,9 @@ function renderAddYear(){$('#f-year').innerHTML=yearsBand().map(y=>`<button clas
 function pickOp(o,btn){if(state.op===o){state.op=null;btn.classList.remove('sel');}else{state.op=o;btn.parentNode.querySelectorAll('.opt').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}}
 function pickTog(k,val,btn){if(state[k]===val){state[k]=null;btn.classList.remove('sel');}else{state[k]=val;btn.parentNode.querySelectorAll('.opt').forEach(b=>b.classList.remove('sel'));btn.classList.add('sel');}}
 function save(){
-  const sel=$('#f-var').value;const v=(sel==='__new__')?($('#f-varnew').value||'').trim():sel;const fam=$('#f-fam').value;const yr=state.addYear;
+  const v=($('#f-var').value||'').trim();const fam=($('#f-fam').value||'').trim()||'Autres';const yr=state.addYear;
   if(!v){toast('Indique le nom de la variété');return;}
-  if(sel==='__new__')addUserVariety(v,fam);
+  if(!DATA.varietes.some(function(x){return x.nom===v;}))addUserVariety(v,fam);
   if(state.mode==='greffe'){
     const eff=parseInt($('#f-eff').value)||0;
     state.records.unshift({id:uid(),type:'greffe',v,famille:fam,pg:$('#f-pg').value,rang:state.rang,annee:yr,greffe:eff>0?'oui':'non',prev:parseInt($('#f-prev').value)||0,eff,op:state.op||null,rep:null,regr:null,rep2:null,invendus:null,rupture:null,date:today()});
