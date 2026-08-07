@@ -461,6 +461,27 @@ function boutRow(r){const bt=bTot(r);const t=bt.taux;const best=bBest(r);
   const sub=[bt.n+' pièces',subLabel(r.substrat)?'substrat '+r.substrat:null,best?'opt. '+best:null,r.date||null].filter(Boolean).join(' · ');
   return `<div class="ent" onclick="openRec('${r.id}')"><div class="av" style="background:#4b7f52">🪴</div><div class="m"><b>${r.v}</b><span>${sub}</span></div><div class="pill ${tauxClass(t)}">${t==null?'à suivre':pct(t)+'%'}</div></div>`;
 }
+function boutSeasonLine(r){
+  const bt=bTot(r);const t=bt.taux;const best=bBest(r);const ete=r.typ==='été';
+  const bits=[bt.n+' pièces',subLabel(r.substrat)?'substrat '+r.substrat:null,best?'opt. '+best:null,r.date||null].filter(Boolean).join(' · ');
+  return `<div class="ent" onclick="event.stopPropagation();openRec('${r.id}')" style="padding-left:20px;background:var(--sage-soft,#f2f6ef)">`+
+    `<div class="av" style="background:${ete?'#c99a3c':'#6a93bf'};font-size:15px">${ete?'☀️':'❄️'}</div>`+
+    `<div class="m"><b style="font-weight:600">${ete?'Été':'Hiver'} ${r.annee||''}</b><span>${bits}</span></div>`+
+    `<div class="pill ${tauxClass(t)}">${t==null?'à suivre':pct(t)+'%'}</div></div>`;
+}
+function boutVarCard(recs){
+  if(recs.length===1)return boutRow(recs[0]);
+  const v=recs[0].v;let n=0,rr=0;recs.forEach(r=>{const bt=bTot(r);n+=bt.n;if(bt.rr)rr+=bt.rr;});
+  const anyR=recs.some(r=>{const bt=bTot(r);return bt.rr>0||bt.taux!=null;});
+  const t=(n&&anyR)?rr/n:null;
+  const seasons=recs.slice().sort((a,b)=>(a.typ==='hiver'?0:1)-(b.typ==='hiver'?0:1));
+  const seasLbl=seasons.map(r=>r.typ==='été'?'☀️':'❄️').join(' ');
+  const head=`<div class="ent"><div class="av" style="background:#4b7f52">🪴</div>`+
+    `<div class="m"><b>${v}</b><span>${n} pièces · ${seasLbl} ${seasons.length} saisons</span></div>`+
+    `<div class="pill ${tauxClass(t)}">${t==null?'à suivre':pct(t)+'%'}</div></div>`;
+  return head+seasons.map(boutSeasonLine).join('');
+}
+
 function renderBoutures(){
   renderBtypeSeg();
   const q=($('#b-q').value||'').toLowerCase();
@@ -469,7 +490,12 @@ function renderBoutures(){
   if(q)rs=rs.filter(r=>(r.v+' '+(r.famille||'')).toLowerCase().includes(q));
   const groups={};rs.forEach(r=>{(groups[r.famille||'Divers']=groups[r.famille||'Divers']||[]).push(r);});
   const fams=Object.keys(groups).sort((a,b)=>a==='Autres boutures'?1:b==='Autres boutures'?-1:a.localeCompare(b));
-  let html='';fams.forEach(f=>{const arr=groups[f].sort((a,b)=>a.v.localeCompare(b.v,'fr'));html+=`<div class="famh">${f}<em>${arr.length}</em></div>`+arr.map(boutRow).join('');});
+  let html='';
+  fams.forEach(f=>{
+    const byv={};groups[f].forEach(r=>{(byv[r.v]=byv[r.v]||[]).push(r);});
+    const vars=Object.keys(byv).sort((a,b)=>a.localeCompare(b,'fr'));
+    html+=`<div class="famh">${f}<em>${vars.length}</em></div>`+vars.map(v=>boutVarCard(byv[v])).join('');
+  });
   $('#blist').innerHTML=rs.length?html:emptyBox('Aucune bouture');
 }
 
