@@ -357,7 +357,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.21';
+const APP_VERSION='2026.22';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1138,7 +1138,7 @@ function loadSite(force){
     var agg={};stock.forEach(function(s){var pid=s.id_product;var q=parseInt(s.quantity,10)||0;if(!agg[pid])agg[pid]={id:pid,said:s.id,oos:(s.out_of_stock!=null?parseInt(s.out_of_stock,10):2),nom:nameById[pid]||('Produit '+pid),qty:0,prix:priceById[pid]||0};agg[pid].qty+=q;});
     var rows=Object.keys(agg).map(function(k){return agg[k];}).filter(function(x){return x.qty>0;});
     rows.sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});
-    SITE.rows=rows;SITE.byName={};SITE.bySaid={};rows.forEach(function(x){SITE.byName[normName(x.nom)]=x;SITE.bySaid[x.said]=x;});SITE.loaded=true;SITE.loading=false;SITE.ts=Date.now();renderSite();try{var ve=document.getElementById('v-elevage');if(ve&&ve.classList.contains('on'))renderElevage();}catch(e){}try{var vc=document.getElementById('v-cat');if(vc&&vc.classList.contains('on'))renderCat();}catch(e){}try{var vs=document.getElementById('v-stats');if(vs&&vs.classList.contains('on'))renderStatsCA();}catch(e){}
+    SITE.rows=rows;SITE.byName={};SITE.bySaid={};rows.forEach(function(x){SITE.byName[normName(x.nom)]=x;SITE.bySaid[x.said]=x;});SITE.loaded=true;SITE.loading=false;SITE.ts=Date.now();try{_SIDX=null;}catch(e){}renderSite();try{var ve=document.getElementById('v-elevage');if(ve&&ve.classList.contains('on'))renderElevage();}catch(e){}try{var vc=document.getElementById('v-cat');if(vc&&vc.classList.contains('on'))renderCat();}catch(e){}try{var vs=document.getElementById('v-stats');if(vs&&vs.classList.contains('on'))renderStatsCA();}catch(e){}
   }).catch(function(e){SITE.loading=false;SITE.err=(e&&e.message)||'connexion';renderSite();});
 }
 function renderSite(){
@@ -1414,28 +1414,55 @@ var ADMIN_HASH='535ae236eb87cf3007b78f15a2bd8335667934665c633681fab896d18ea4978f
 function isAdmin(){try{return localStorage.getItem('pepins_admin')==='1';}catch(e){return false;}}
 async function _sha256hex(s){try{var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.prototype.map.call(new Uint8Array(b),function(x){return('0'+x.toString(16)).slice(-2);}).join('');}catch(e){return '';}}
 function eur(v){if(!isAdmin()||v==null||v===''||isNaN(v))return '';v=Number(v);var s=(Math.abs(v)>=100)?fmt(Math.round(v)):(Math.round(v*100)/100).toFixed(2);return s+' €';}
-var _VARPRICE=null;
-function _varPriceMap(){if(_VARPRICE)return _VARPRICE;_VARPRICE={};try{DATA.varietes.forEach(function(v){if(v&&v.nom&&v.prix>0){var k=normName(v.nom);if(!_VARPRICE[k])_VARPRICE[k]=v.prix;}});}catch(e){}return _VARPRICE;}
-function _priceOf(nom){try{var k=normName(nom);var vm=_varPriceMap();if(vm[k])return vm[k];var m=siteMatch(nom);return (m&&m.prix)?m.prix:0;}catch(e){return 0;}}
-function getAvgPrice(){try{var v=parseFloat(localStorage.getItem('pepins_avgprice'));if(v>0)return v;}catch(e){}return 15;}
-function setAvgPrice(v){v=parseFloat(String(v).replace(',','.'));if(!(v>0))return;try{localStorage.setItem('pepins_avgprice',String(v));}catch(e){}renderStatsCA();}
+var _SIDX=null;
+function _siteIdx(){
+  if(_SIDX)return _SIDX;
+  var idx={},arr=[];
+  try{(SITE.allProducts||[]).forEach(function(p){if(p&&p.nom&&p.prix>0){var n=normName(p.nom);if(idx[n]==null)idx[n]=p.prix;arr.push({n:n,p:p.prix});}});}catch(e){}
+  _SIDX={idx:idx,arr:arr};return _SIDX;
+}
+// Lie un nom de variété à un produit du site (prix du site). 0 si non trouvé.
+function _linkPrice(name){
+  var S=_siteIdx();var n=normName(name);if(!n||!S.arr.length)return 0;
+  if(S.idx[n]!=null)return S.idx[n];
+  var best=null;S.arr.forEach(function(s){if(s.n.length>=n.length&&s.n.indexOf(n)>=0){if(!best||s.n.length<best.n.length)best=s;}});
+  if(best)return best.p;
+  var b2=null;S.arr.forEach(function(s){if(s.n.length>=5&&n.indexOf(s.n)>=0){if(!b2||s.n.length>b2.n.length)b2=s;}});
+  return b2?b2.p:0;
+}
 function _siteValue(){var t=0,n=0,u=0;try{if(SITE&&SITE.bySaid){for(var k in SITE.bySaid){var r=SITE.bySaid[k];if(r&&r.prix&&r.qty&&r.qty<900){t+=r.prix*r.qty;n++;u+=r.qty;}}}}catch(e){}return {total:t,n:n,u:u};}
-function _reserveValue(){var avg=getAvgPrice();var exV=0,exU=0,estU=0,n=0;try{var lots=[];try{lots=greffeReserveLots();}catch(e){}lots=lots.concat((ELEV&&ELEV.lots)||[]);lots.forEach(function(l){var q=l.qty||0;if(!q)return;n++;var p=_priceOf(l.nom);if(p){exV+=p*q;exU+=q;}else{estU+=q;}});}catch(e){}var estV=estU*avg;return {total:exV+estV,exV:exV,exU:exU,estU:estU,estV:estV,avg:avg,u:exU+estU,n:n};}
+function _reserveValue(){var linkV=0,linkU=0,missU=0,miss={};
+  try{var lots=greffeReserveLots().concat((ELEV&&ELEV.lots)||[]);
+    lots.forEach(function(l){var q=l.qty||0;if(!q)return;var p=_linkPrice(l.nom);
+      if(p>0){linkV+=p*q;linkU+=q;}
+      else{missU+=q;var k=(l.nom||'?')+'|'+(l.fam||'');if(!miss[k])miss[k]={nom:l.nom||'?',fam:l.fam||'',q:0};miss[k].q+=q;}});
+  }catch(e){}
+  var ml=Object.keys(miss).map(function(k){return miss[k];}).sort(function(a,b){return b.q-a.q;});
+  return {total:linkV,linkU:linkU,missU:missU,missList:ml,u:linkU+missU};
+}
 function renderStatsCA(){
   var el=document.getElementById('stats-ca');if(!el)return;
   if(!isAdmin()){el.innerHTML='';return;}
   if(SITE&&!SITE.loaded&&!SITE.loading){try{loadSite(false);}catch(e){}}
+  var loading=(SITE&&SITE.loading&&!SITE.loaded)||!(SITE&&SITE.loaded);
+  if(loading){el.innerHTML='<div class="sec" style="margin-top:6px">Potentiel CA · stock prêt à vendre</div><div class="card" style="padding:14px 16px"><p class="hint" style="margin:0">Lecture des prix du site en direct… <a style="cursor:pointer;color:#3f7350" onclick="loadSite(true)">rafraîchir</a></p></div>';return;}
   var sv=_siteValue(),rv=_reserveValue();var tot=sv.total+rv.total;
-  var loading=(SITE&&SITE.loading&&!SITE.loaded);
-  var estNote=rv.estU?('<p class="hint" style="margin:2px 0 0">dont '+fmt(rv.estU)+' plants sans prix fiché, estimés à '+rv.avg+' €/plant = '+eur(rv.estV)+'</p>'):'';
-  el.innerHTML='<div class="sec" style="margin-top:6px">Potentiel CA · stock prêt à vendre</div>'
+  var h='<div class="sec" style="margin-top:6px">Potentiel CA · stock prêt à vendre</div>'
    +'<div class="card" style="padding:14px 16px">'
-   +'<div class="mrow" style="font-size:17px"><span><b>Potentiel CA total</b></span><b style="color:var(--forest)">'+(loading?'calcul…':eur(tot))+'</b></div>'
-   +'<div class="mrow" style="margin-top:8px"><span>Stock du site ('+fmt(sv.u)+' u · '+sv.n+' réf.)</span><b>'+(loading?'…':eur(sv.total))+'</b></div>'
-   +'<div class="mrow"><span>Réserve / stock global ('+fmt(rv.u)+' plants)</span><b>'+eur(rv.total)+'</b></div>'
-   +estNote
-   +'<div class="mrow" style="margin-top:10px"><span>Prix moyen estimé / plant</span><span><input class="miniinp" id="ca-avg" inputmode="decimal" value="'+rv.avg+'" style="width:64px;text-align:right" onchange="setAvgPrice(this.value)"> €</span></div>'
-   +'<p class="hint" style="margin-top:8px">Quantités disponibles × prix. Les plants du stock global sans prix précis sont estimés au prix moyen ci-dessus (modifiable). Stock illimité (∞) non compté. Réservé admin.</p></div>';
+   +'<div class="mrow" style="font-size:17px"><span><b>Potentiel CA total</b></span><b style="color:var(--forest)">'+eur(tot)+'</b></div>'
+   +'<div class="mrow" style="margin-top:8px"><span>Stock du site ('+fmt(sv.u)+' u · '+sv.n+' réf.)</span><b>'+eur(sv.total)+'</b></div>'
+   +'<div class="mrow"><span>Réserve / stock global ('+fmt(rv.linkU)+' plants liés)</span><b>'+eur(rv.total)+'</b></div>'
+   +'<p class="hint" style="margin-top:8px">Chaque plant est lié à son produit du site et compté à son prix du site (mis à jour à chaque lecture). <a style="cursor:pointer;color:#3f7350" onclick="loadSite(true)">Rafraîchir les prix</a></p></div>';
+  if(rv.missU>0){
+    var rows=rv.missList.slice(0,40).map(function(m){return '<div class="mrow"><span>'+esc(m.nom)+(m.fam?' <span style="color:var(--muted)">· '+esc(m.fam)+'</span>':'')+'</span><b>'+fmt(m.q)+'</b></div>';}).join('');
+    var more=rv.missList.length>40?('<p class="hint" style="margin:6px 0 0">… et '+(rv.missList.length-40)+' autres variétés.</p>'):'';
+    h+='<div class="sec" style="margin-top:16px;color:#9a6a12">⚠️ À créer sur le site</div>'
+     +'<div class="card" style="padding:14px 16px;border:1px solid #e6c463;background:#fbf5e3">'
+     +'<div class="mrow" style="font-size:15px"><span><b>'+rv.missList.length+' variétés non listées</b></span><b>'+fmt(rv.missU)+' plants</b></div>'
+     +'<p class="hint" style="margin:4px 0 8px">Ces plants sont en production mais n\'existent pas encore comme produit sur le site — crée-les pour qu\'ils soient chiffrés dans le CA.</p>'
+     +rows+more+'</div>';
+  }
+  el.innerHTML=h;
 }
 function openAdmin(){renderAdminBody();document.getElementById('adminov').classList.add('show');}
 function closeAdmin(){var o=document.getElementById('adminov');if(o)o.classList.remove('show');}
