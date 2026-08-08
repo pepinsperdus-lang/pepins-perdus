@@ -356,7 +356,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.18';
+const APP_VERSION='2026.19';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -508,7 +508,7 @@ function renderCommercial(){
   var mx=(c.top&&c.top[0])?c.top[0].q:1;
   var caLine=isAdmin()?('<div class="mrow" style="margin-bottom:6px"><span>Chiffre d\'affaires (site)</span><b>'+eur(c.totalCA)+'</b></div>'):'';
   var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><b style="font-family:\'Fraunces\';color:var(--forest);font-size:15px;flex:1">Ce qui se vend le mieux</b><span style="font-size:11px;color:var(--muted)">'+_bestAgeTxt(c.ts)+'</span></div>'
-   +'<p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">'+fmt(c.nProd)+' produits vendus · '+fmt(c.totalU)+' unités'+(isAdmin()?'':' · montants € réservés admin')+'</p>'
+   +'<p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">'+fmt(c.nProd)+' produits vendus · '+fmt(c.totalU)+' unités'+(isAdmin()?'':' · montants réservés admin')+'</p>'
    +caLine
    +'<div class="sec" style="margin-top:4px">Top ventes</div>'+_sellRows(c.top,mx)
    +'<div class="sec" style="margin-top:12px">Les moins vendus</div>'+_sellRows(c.low,mx)
@@ -1411,7 +1411,7 @@ function menuGo(v){closeMenu();if(v==='__settings__'){openSettings();return;}if(
 var ADMIN_HASH='535ae236eb87cf3007b78f15a2bd8335667934665c633681fab896d18ea4978f';
 function isAdmin(){try{return localStorage.getItem('pepins_admin')==='1';}catch(e){return false;}}
 async function _sha256hex(s){try{var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.prototype.map.call(new Uint8Array(b),function(x){return('0'+x.toString(16)).slice(-2);}).join('');}catch(e){return '';}}
-function eur(v){if(!isAdmin()||v==null||v===''||isNaN(v))return '';return (Math.round(v*100)/100).toFixed(2)+' €';}
+function eur(v){if(!isAdmin()||v==null||v===''||isNaN(v))return '';v=Number(v);var s=(Math.abs(v)>=100)?fmt(Math.round(v)):(Math.round(v*100)/100).toFixed(2);return s+' €';}
 function _siteValue(){var t=0,n=0;try{if(SITE&&SITE.bySaid){for(var k in SITE.bySaid){var r=SITE.bySaid[k];if(r&&r.prix&&r.qty){t+=r.prix*r.qty;n++;}}}}catch(e){}return {total:t,n:n};}
 function openAdmin(){renderAdminBody();document.getElementById('adminov').classList.add('show');}
 function closeAdmin(){var o=document.getElementById('adminov');if(o)o.classList.remove('show');}
