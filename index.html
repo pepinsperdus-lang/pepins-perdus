@@ -356,7 +356,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.17';
+const APP_VERSION='2026.18';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -469,6 +469,51 @@ function renderHome(){
   var arr=Object.entries(esp).filter(function(x){return x[1].eff>0;}).sort(function(a,b){return b[1].n-a[1].n;}).slice(0,8);
   var mx=Math.max.apply(null,[1].concat(arr.map(function(x){return x[1].n;})));
   $('#topesp').innerHTML=arr.length?arr.map(function(kv){var e=kv[0],o=kv[1];var t=o.eff?Math.round(o.rep/o.eff*100):0;return '<div class="row"><div class="bar"><div class="t"><span>'+e+'</span><em>'+o.rep+'/'+o.eff+' · '+t+'%</em></div><div class="track"><div class="fill" style="width:'+Math.round(o.n/mx*100)+'%"></div></div></div></div>';}).join(''):emptyBox('Aucune greffe');
+  if(_bestCache())loadBest(false);else renderCommercial();
+}
+
+// ---- PERFORMANCE COMMERCIALE (ventes réelles du site) ----
+var BEST_URL='https://hook.eu1.make.com/12hhddtn4yg2pv5jpu7fqr6gghwpe48h';
+var BEST_KEY='pepins_bestsell_v1';
+var _bestLoading=false;
+function _bestCache(){try{return JSON.parse(localStorage.getItem(BEST_KEY)||'null');}catch(e){return null;}}
+function _bestAgeTxt(ts){if(!ts)return '';var d=Date.now()-ts;var h=Math.floor(d/3600000);if(h<1)return 'à jour à l\'instant';if(h<24)return 'à jour il y a '+h+' h';var j=Math.floor(h/24);return 'à jour il y a '+j+' j';}
+async function loadBest(force){
+  var c=_bestCache();
+  if(!force&&c&&c.ts&&(Date.now()-c.ts)<12*3600000){renderCommercial();return;}
+  if(_bestLoading)return; _bestLoading=true; renderCommercial();
+  try{
+    var r=await fetch(BEST_URL+'?t='+Date.now());var txt=await r.text();var j=JSON.parse(txt);
+    var rows=j.order_details||[];var agg={};var totalCA=0,totalU=0;
+    rows.forEach(function(d){var pid=d.product_id;if(!pid)return;var q=parseInt(d.product_quantity)||0;var rev=parseFloat(d.total_price_tax_incl)||0;
+      if(!agg[pid])agg[pid]={name:(d.product_name||'').replace(/\s*\(.*$/,'').trim()||('#'+pid),q:0,rev:0};
+      agg[pid].q+=q;agg[pid].rev+=rev;totalCA+=rev;totalU+=q;});
+    var all=Object.keys(agg).map(function(k){return agg[k];}).filter(function(x){return x.q>0;}).sort(function(a,b){return b.q-a.q;});
+    var data={ts:Date.now(),totalCA:Math.round(totalCA),totalU:totalU,nProd:all.length,
+      top:all.slice(0,10),low:all.slice(-6).reverse()};
+    try{localStorage.setItem(BEST_KEY,JSON.stringify(data));}catch(e){}
+  }catch(e){}
+  _bestLoading=false; renderCommercial();
+}
+function _sellRows(list,mx){return list.map(function(x){var w=mx?Math.round(x.q/mx*100):0;var money=eur(x.rev);return '<div class="row"><div class="bar"><div class="t"><span>'+esc(x.name)+'</span><em>'+fmt(x.q)+' vendus'+(money?' · '+money:'')+'</em></div><div class="track"><div class="fill" style="width:'+w+'%"></div></div></div></div>';}).join('');}
+function renderCommercial(){
+  var el=document.getElementById('commercial');if(!el)return;
+  var c=_bestCache();
+  if(!c){
+    el.innerHTML='<div style="display:flex;gap:13px;align-items:flex-start"><div style="width:40px;height:40px;border-radius:12px;flex:none;display:grid;place-items:center;background:linear-gradient(140deg,#4b7f52,#2c5c3d)"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2"><path d="M3 17l6-6 4 4 8-8"/><path d="M21 7v6h-6"/></svg></div>'
+      +'<div style="flex:1"><b style="font-family:\'Fraunces\';color:var(--forest);font-size:15px">Ce qui se vend le mieux</b><p style="font-size:12.5px;color:var(--muted);margin:5px 0 0;line-height:1.45">Tes meilleures ventes, lues en direct sur ton site Pépins Perdus.</p></div></div>'
+      +'<button class="ghost" style="margin-top:12px" onclick="loadBest(true)">'+(_bestLoading?'Chargement…':'Charger mes ventes')+'</button>';
+    return;
+  }
+  var mx=(c.top&&c.top[0])?c.top[0].q:1;
+  var caLine=isAdmin()?('<div class="mrow" style="margin-bottom:6px"><span>Chiffre d\'affaires (site)</span><b>'+eur(c.totalCA)+'</b></div>'):'';
+  var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><b style="font-family:\'Fraunces\';color:var(--forest);font-size:15px;flex:1">Ce qui se vend le mieux</b><span style="font-size:11px;color:var(--muted)">'+_bestAgeTxt(c.ts)+'</span></div>'
+   +'<p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">'+fmt(c.nProd)+' produits vendus · '+fmt(c.totalU)+' unités'+(isAdmin()?'':' · montants € réservés admin')+'</p>'
+   +caLine
+   +'<div class="sec" style="margin-top:4px">Top ventes</div>'+_sellRows(c.top,mx)
+   +'<div class="sec" style="margin-top:12px">Les moins vendus</div>'+_sellRows(c.low,mx)
+   +'<button class="ghost" style="margin-top:12px" onclick="loadBest(true)">'+(_bestLoading?'Actualisation…':'Actualiser les ventes')+'</button>';
+  el.innerHTML=h;
 }
 
 // ---- GREFFES ----
