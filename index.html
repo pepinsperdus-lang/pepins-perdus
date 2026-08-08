@@ -335,6 +335,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
   </div>
 
   <div class="ov" id="menuov"><div class="sheet"><div class="grab"></div><h2 style="font-size:20px;margin:0 0 4px">Menu</h2><p class="dsub">Tout ce que tu peux gérer.</p><div class="card" id="menu-body"></div><button class="ghost" style="margin-top:12px" onclick="closeMenu()">Fermer</button></div></div>
+  <div class="ov" id="adminov"><div class="sheet"><div id="admin-body"></div><button class="ghost" style="margin-top:12px" onclick="closeAdmin()">Fermer</button></div></div>
   <div class="toast" id="toast"></div>
   <nav class="nav">
     <button class="on" data-v="home" onclick="go('home',this)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Accueil</button>
@@ -355,7 +356,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.16';
+const APP_VERSION='2026.17';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -441,22 +442,28 @@ function renderHome(){
   $('#sem-cta-n').textContent=rem;$('#sem-cta-t').textContent=rem?rem+' semence'+(rem>1?'s':'')+' à acheter · 2026':'tout est acheté 🎉';
   var I={
    plan:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>',
-   cat:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
    stats:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
-   elev:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V8"/><path d="M12 8c0-2.2 1.8-4 4-4h3v3c0 2.2-1.8 4-4 4h-3"/><path d="M12 13H9c-2.2 0-4-1.8-4-4V6h3c2.2 0 4 1.8 4 4"/></svg>',
+   elevage:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V8"/><path d="M12 8c0-2.2 1.8-4 4-4h3v3c0 2.2-1.8 4-4 4h-3"/><path d="M12 13H9c-2.2 0-4-1.8-4-4V6h3c2.2 0 4 1.8 4 4"/></svg>',
    stock:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 7v10l9 4 9-4V7"/><path d="M12 11v10"/></svg>',
-   task:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
-   arros:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/></svg>',
-   pieds:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V13"/><path d="M12 13a5 5 0 1 0-5-5 5 5 0 0 0 5 5z"/><path d="M9 22h6"/></svg>'
+   todo:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+   arrosage:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/></svg>',
+   pieds:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V13"/><path d="M12 13a5 5 0 1 0-5-5 5 5 0 0 0 5 5z"/><path d="M9 22h6"/></svg>',
+   semis:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c0-6 3-9 8-10-1 6-4 9-8 10z"/><path d="M12 22c0-5-2.5-7.5-7-8 1 5 3 7 7 8z"/><path d="M12 22v-5"/></svg>',
+   cmd:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2h6a1 1 0 0 1 1 1v1h2a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h2V3a1 1 0 0 1 1-1z"/><path d="M9 12l2 2 4-4"/></svg>',
+   semences:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8h14l-1 12a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 8z"/><path d="M9 8V5a3 3 0 0 1 6 0v3"/></svg>',
+   hormones:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 2 3h10a2 2 0 0 0 2-3l-5-9V3"/></svg>',
+   settings:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1l2-1.6-2-3.4-2.3 1a7 7 0 0 0-1.7-1L14.5 2h-4L10 4a7 7 0 0 0-1.7 1l-2.3-1-2 3.4L6 9a7 7 0 0 0 0 2l-2 1.6 2 3.4 2.3-1a7 7 0 0 0 1.7 1l.5 2.4h4l.5-2.4a7 7 0 0 0 1.7-1l2.3 1 2-3.4-2-1.6a7 7 0 0 0 .1-1z"/></svg>',
+   admin:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
   };
   var Q=[
-   {i:'plan',l:'Planches de culture',v:'plan'},{i:'stats',l:'Stats',v:'stats'},
-   {i:'elev',l:'Stock global',v:'elevage'},{i:'stock',l:'Stock',v:'stock'},{i:'task',l:'Tâches',v:'todo'},
-   {i:'arros',l:'Arrosages',v:'arrosage'},{i:'pieds',l:'Pieds-mères',v:'pieds'}
+   {i:'semis',l:'Semis',r:'semis'},{i:'cmd',l:'Cmd porte-greffes',r:'cmd'},{i:'semences',l:'Semences',r:'semences'},
+   {i:'elevage',l:'Stock global',r:'elevage'},{i:'stock',l:'Stock site',r:'stock'},{i:'arrosage',l:'Arrosages',r:'arrosage'},
+   {i:'pieds',l:'Pieds-mères',r:'pieds'},{i:'todo',l:'Tâches',r:'todo'},{i:'plan',l:'Planches',r:'plan'},
+   {i:'stats',l:'Stats',r:'stats'},{i:'hormones',l:'Réglages bouture',r:'hormones'},{i:'settings',l:'Réglages',r:'__settings__'},
+   {i:'admin',l:'Admin',r:'__admin__'}
   ];
   $('#quick').innerHTML=Q.map(function(q){
-    var act=q.soon?'onclick="toast(\''+q.l+' — bientôt disponible\')"':'onclick="show(\''+q.v+'\')"';
-    return '<button class="ql" '+act+'>'+(I[q.i]||'')+'<div>'+q.l+'</div>'+(q.soon?'<span class="soon">bientôt</span>':'')+'</button>';
+    return '<button class="ql" onclick="menuGo(\''+q.r+'\')">'+(I[q.i]||I.plan)+'<div>'+q.l+'</div></button>';
   }).join('');
   var esp={};g.forEach(function(r){var e=r.famille||'Divers';esp[e]=esp[e]||{n:0,rep:0,eff:0};esp[e].n+=r.eff||0;esp[e].rep+=r.rep||0;esp[e].eff+=r.eff||0;});
   var arr=Object.entries(esp).filter(function(x){return x[1].eff>0;}).sort(function(a,b){return b[1].n-a[1].n;}).slice(0,8);
@@ -670,8 +677,8 @@ function renderCat(){
   var siteOnly=Object.keys(sd).map(function(k){return sd[k];}).sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});
   var fams=Object.keys(groups).sort(function(a,b){return a==='Autres'?1:b==='Autres'?-1:a.localeCompare(b);});
   var html='';
-  fams.forEach(function(f){var arr=groups[f].sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});html+='<div class="famh">'+f+'<em>'+arr.length+'</em></div>'+arr.map(function(v){return '<div class="ent"><div class="av" style="background:'+colors[hashi(f)]+'">'+initials(v.nom)+'</div><div class="m"><b>'+esc(v.nom)+'</b><span>'+f+'</span></div><div class="price">'+(v.prix?v.prix+' €':'—')+'</div></div>';}).join('');});
-  if(siteOnly.length){html+='<div class="famh">Autres produits du site<em>'+siteOnly.length+'</em></div>'+siteOnly.map(function(v){return '<div class="ent"><div class="av" style="background:#3f7350">'+initials(v.nom)+'</div><div class="m"><b>'+esc(v.nom)+'</b><span>sur le site</span></div><div class="price">'+(v.prix?v.prix.toFixed(2)+' €':'—')+'</div></div>';}).join('');}
+  fams.forEach(function(f){var arr=groups[f].sort(function(a,b){return a.nom.localeCompare(b.nom,'fr');});html+='<div class="famh">'+f+'<em>'+arr.length+'</em></div>'+arr.map(function(v){return '<div class="ent"><div class="av" style="background:'+colors[hashi(f)]+'">'+initials(v.nom)+'</div><div class="m"><b>'+esc(v.nom)+'</b><span>'+f+'</span></div><div class="price">'+(isAdmin()&&v.prix?v.prix+' €':'—')+'</div></div>';}).join('');});
+  if(siteOnly.length){html+='<div class="famh">Autres produits du site<em>'+siteOnly.length+'</em></div>'+siteOnly.map(function(v){return '<div class="ent"><div class="av" style="background:#3f7350">'+initials(v.nom)+'</div><div class="m"><b>'+esc(v.nom)+'</b><span>sur le site</span></div><div class="price">'+(isAdmin()&&v.prix?v.prix.toFixed(2)+' €':'—')+'</div></div>';}).join('');}
   var total=list.length+siteOnly.length;
   $('#vlist').innerHTML=total?html:emptyBox('Aucune variété');
 }
@@ -1113,7 +1120,7 @@ function renderSite(){
     var c=isBig?'#3f7350':(r.qty<=5?'#b0512c':(r.qty<=15?'#c99a3c':'#3f7350'));
     return '<div class="ent">'
      +'<div class="av" style="background:'+c+';font-size:12px">'+(isBig?'∞':fmt(r.qty))+'</div>'
-     +'<div class="m" style="min-width:0"><b>'+esc(r.nom)+'</b><span>'+(r.prix?r.prix.toFixed(2)+' € · ':'')+'site</span></div>'
+     +'<div class="m" style="min-width:0"><b>'+esc(r.nom)+'</b><span>'+(isAdmin()&&r.prix?r.prix.toFixed(2)+' € · ':'')+'site</span></div>'
      +'<div class="stepper" style="flex:none;margin-left:auto"><button onclick="siteStep('+r.said+',-1)">&minus;</button>'
      +'<input id="sq-'+r.said+'" inputmode="numeric" value="'+r.qty+'" style="width:50px;text-align:center" oninput="siteDirty('+r.said+')"><button onclick="siteStep('+r.said+',1)">+</button></div>'
      +'<button id="sw-'+r.said+'" onclick="siteWrite('+r.said+')" title="Envoyer au site" style="'+btnStyle+'">✓</button>'
@@ -1351,10 +1358,39 @@ function piedsSet(l,v){PIEDS.notes[l]=v;savePieds();}
 
 // ---- MENU ☰ ----
 var siteFilter='all';
-var MENU=[['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
+var MENU=[['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__admin__','Admin · chiffres en € (code)'],['__settings__','Réglages / export']];
 function openMenu(){var b=document.getElementById('menu-body');if(!b)return;b.innerHTML=MENU.map(function(m){return '<div class="ent" onclick="menuGo(\''+m[0]+'\')" style="cursor:pointer"><div class="m"><b>'+m[1]+'</b></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c3cabf" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></div>';}).join('');document.getElementById('menuov').classList.add('show');}
 function closeMenu(){var o=document.getElementById('menuov');if(o)o.classList.remove('show');}
-function menuGo(v){closeMenu();if(v==='__settings__'){openSettings();return;}show(v);}
+function menuGo(v){closeMenu();if(v==='__settings__'){openSettings();return;}if(v==='__admin__'){openAdmin();return;}show(v);}
+// ---- ADMIN (accès chiffré € par code) ----
+var ADMIN_HASH='535ae236eb87cf3007b78f15a2bd8335667934665c633681fab896d18ea4978f';
+function isAdmin(){try{return localStorage.getItem('pepins_admin')==='1';}catch(e){return false;}}
+async function _sha256hex(s){try{var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.prototype.map.call(new Uint8Array(b),function(x){return('0'+x.toString(16)).slice(-2);}).join('');}catch(e){return '';}}
+function eur(v){if(!isAdmin()||v==null||v===''||isNaN(v))return '';return (Math.round(v*100)/100).toFixed(2)+' €';}
+function _siteValue(){var t=0,n=0;try{if(SITE&&SITE.bySaid){for(var k in SITE.bySaid){var r=SITE.bySaid[k];if(r&&r.prix&&r.qty){t+=r.prix*r.qty;n++;}}}}catch(e){}return {total:t,n:n};}
+function openAdmin(){renderAdminBody();document.getElementById('adminov').classList.add('show');}
+function closeAdmin(){var o=document.getElementById('adminov');if(o)o.classList.remove('show');}
+function renderAdminBody(){
+  var b=document.getElementById('admin-body');if(!b)return;
+  if(!isAdmin()){
+    b.innerHTML='<div class="grab"></div><h2 style="font-size:20px;margin:0 0 4px">Espace admin</h2>'
+     +'<p class="dsub">Les montants en euros sont masqués pour tout le monde. Entre le code admin pour les afficher (visible seulement sur cet appareil).</p>'
+     +'<input class="inp" id="admin-code" type="password" inputmode="text" placeholder="Code admin" style="margin-top:6px" onkeydown="if(event.key===\'Enter\')adminTry()">'
+     +'<div id="admin-err" style="color:#b0512c;font-size:13px;min-height:16px;margin:4px 2px"></div>'
+     +'<button class="save" style="margin-top:4px" onclick="adminTry()">Déverrouiller</button>';
+  } else {
+    var sv=_siteValue();
+    b.innerHTML='<div class="grab"></div><h2 style="font-size:20px;margin:0 0 4px">Espace admin 🔓</h2>'
+     +'<p class="dsub">Mode admin actif sur cet appareil — les montants en € sont visibles partout.</p>'
+     +'<div class="sec">Chiffres en euros</div>'
+     +'<div class="card" style="padding:14px 16px"><div class="mrow"><span>Valeur du stock site</span><b>'+(sv.n?eur(sv.total):'—')+'</b></div>'
+     +'<div class="mrow"><span>Produits valorisés</span><b>'+sv.n+'</b></div>'
+     +'<p class="hint" style="margin-top:8px">Le chiffre d\'affaires réel (ventes du site) s\'affichera ici une fois les ventes PrestaShop branchées.</p></div>'
+     +'<button class="del" style="margin-top:12px" onclick="adminLock()">Verrouiller (masquer les €)</button>';
+  }
+}
+async function adminTry(){var i=document.getElementById('admin-code');var v=(i&&i.value||'').trim();var h=await _sha256hex(v);if(h===ADMIN_HASH){try{localStorage.setItem('pepins_admin','1');}catch(e){}toast('Mode admin activé');renderAdminBody();try{refreshCurrent();}catch(e){}}else{var er=document.getElementById('admin-err');if(er)er.textContent='Code incorrect';if(i){i.value='';i.focus();}}}
+function adminLock(){try{localStorage.removeItem('pepins_admin');}catch(e){}toast('Montants masqués');renderAdminBody();try{refreshCurrent();}catch(e){}}
 
 // ---- LIEN APPLI <-> SITE (par le nom) ----
 function normName(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();}
