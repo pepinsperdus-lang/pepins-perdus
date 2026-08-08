@@ -352,7 +352,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.13';
+const APP_VERSION='2026.14';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1469,7 +1469,36 @@ async function _cloudReadKey(key){
   }
   return null;
 }
+function _isEmptyVal(key,o){
+  try{
+    if(o==null)return true;
+    if(key==='records'||key==='uservars')return !(Array.isArray(o)&&o.length);
+    if(key==='todo')return !(o.items&&o.items.length);
+    if(key==='elevage')return !((o.lots&&o.lots.length)||(o.dispo&&o.dispo.length));
+    if(key==='pieds')return !((o.notes&&Object.keys(o.notes).length)||o.plan);
+    if(key==='sem')return !(o.bought&&Object.keys(o.bought).length);
+    if(key==='arros'){if(!o||!o.zones)return true;return !Object.keys(o.zones).some(function(z){return ((o.zones[z]&&o.zones[z].prog)||'')!=='';});}
+    return false;
+  }catch(_){return false;}
+}
 function cloudBoot(){
+  if(typeof fetch!=='function')return Promise.resolve();
+  return Promise.all(CLOUD_KEYS.map(function(e){
+    return _cloudReadKey(e.k).then(function(val){
+      if(val==null){_cloudEmpty[e.k]=1;return;}
+      var cloudObj;try{cloudObj=JSON.parse(val);}catch(_){_cloudEmpty[e.k]=1;return;}
+      var localStr=null,localObj=null;
+      try{localStr=localStorage.getItem(e.ls);if(localStr)localObj=JSON.parse(localStr);}catch(_){}
+      if(_isEmptyVal(e.k,cloudObj) && localStr && !_isEmptyVal(e.k,localObj)){
+        try{cloudPush(e.k, localObj);}catch(_){}
+        return;
+      }
+      try{localStorage.setItem(e.ls,val);}catch(_){}
+      return;
+    }).catch(function(){});
+  }));
+}
+function _cloudBootOld(){
   if(typeof fetch!=='function')return Promise.resolve();
   return Promise.all(CLOUD_KEYS.map(function(e){
     return _cloudReadKey(e.k).then(function(val){
