@@ -357,7 +357,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.20';
+const APP_VERSION='2026.21';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1414,21 +1414,28 @@ var ADMIN_HASH='535ae236eb87cf3007b78f15a2bd8335667934665c633681fab896d18ea4978f
 function isAdmin(){try{return localStorage.getItem('pepins_admin')==='1';}catch(e){return false;}}
 async function _sha256hex(s){try{var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.prototype.map.call(new Uint8Array(b),function(x){return('0'+x.toString(16)).slice(-2);}).join('');}catch(e){return '';}}
 function eur(v){if(!isAdmin()||v==null||v===''||isNaN(v))return '';v=Number(v);var s=(Math.abs(v)>=100)?fmt(Math.round(v)):(Math.round(v*100)/100).toFixed(2);return s+' €';}
+var _VARPRICE=null;
+function _varPriceMap(){if(_VARPRICE)return _VARPRICE;_VARPRICE={};try{DATA.varietes.forEach(function(v){if(v&&v.nom&&v.prix>0){var k=normName(v.nom);if(!_VARPRICE[k])_VARPRICE[k]=v.prix;}});}catch(e){}return _VARPRICE;}
+function _priceOf(nom){try{var k=normName(nom);var vm=_varPriceMap();if(vm[k])return vm[k];var m=siteMatch(nom);return (m&&m.prix)?m.prix:0;}catch(e){return 0;}}
+function getAvgPrice(){try{var v=parseFloat(localStorage.getItem('pepins_avgprice'));if(v>0)return v;}catch(e){}return 15;}
+function setAvgPrice(v){v=parseFloat(String(v).replace(',','.'));if(!(v>0))return;try{localStorage.setItem('pepins_avgprice',String(v));}catch(e){}renderStatsCA();}
 function _siteValue(){var t=0,n=0,u=0;try{if(SITE&&SITE.bySaid){for(var k in SITE.bySaid){var r=SITE.bySaid[k];if(r&&r.prix&&r.qty&&r.qty<900){t+=r.prix*r.qty;n++;u+=r.qty;}}}}catch(e){}return {total:t,n:n,u:u};}
-function _priceOf(nom){try{var m=siteMatch(nom);return (m&&m.prix)?m.prix:0;}catch(e){return 0;}}
-function _reserveValue(){var t=0,n=0,u=0;try{var lots=[];try{lots=greffeReserveLots();}catch(e){}lots=lots.concat((ELEV&&ELEV.lots)||[]);lots.forEach(function(l){var p=_priceOf(l.nom);if(p&&l.qty){t+=p*l.qty;n++;u+=l.qty;}});}catch(e){}return {total:t,n:n,u:u};}
+function _reserveValue(){var avg=getAvgPrice();var exV=0,exU=0,estU=0,n=0;try{var lots=[];try{lots=greffeReserveLots();}catch(e){}lots=lots.concat((ELEV&&ELEV.lots)||[]);lots.forEach(function(l){var q=l.qty||0;if(!q)return;n++;var p=_priceOf(l.nom);if(p){exV+=p*q;exU+=q;}else{estU+=q;}});}catch(e){}var estV=estU*avg;return {total:exV+estV,exV:exV,exU:exU,estU:estU,estV:estV,avg:avg,u:exU+estU,n:n};}
 function renderStatsCA(){
   var el=document.getElementById('stats-ca');if(!el)return;
   if(!isAdmin()){el.innerHTML='';return;}
   if(SITE&&!SITE.loaded&&!SITE.loading){try{loadSite(false);}catch(e){}}
   var sv=_siteValue(),rv=_reserveValue();var tot=sv.total+rv.total;
   var loading=(SITE&&SITE.loading&&!SITE.loaded);
+  var estNote=rv.estU?('<p class="hint" style="margin:2px 0 0">dont '+fmt(rv.estU)+' plants sans prix fiché, estimés à '+rv.avg+' €/plant = '+eur(rv.estV)+'</p>'):'';
   el.innerHTML='<div class="sec" style="margin-top:6px">Potentiel CA · stock prêt à vendre</div>'
    +'<div class="card" style="padding:14px 16px">'
    +'<div class="mrow" style="font-size:17px"><span><b>Potentiel CA total</b></span><b style="color:var(--forest)">'+(loading?'calcul…':eur(tot))+'</b></div>'
    +'<div class="mrow" style="margin-top:8px"><span>Stock du site ('+fmt(sv.u)+' u · '+sv.n+' réf.)</span><b>'+(loading?'…':eur(sv.total))+'</b></div>'
-   +'<div class="mrow"><span>Réserve / stock global ('+fmt(rv.u)+' u · '+rv.n+' réf.)</span><b>'+eur(rv.total)+'</b></div>'
-   +'<p class="hint" style="margin-top:8px">Quantités disponibles × prix de vente du site. Le stock « illimité » (∞) n\'est pas compté. Réservé admin.</p></div>';
+   +'<div class="mrow"><span>Réserve / stock global ('+fmt(rv.u)+' plants)</span><b>'+eur(rv.total)+'</b></div>'
+   +estNote
+   +'<div class="mrow" style="margin-top:10px"><span>Prix moyen estimé / plant</span><span><input class="miniinp" id="ca-avg" inputmode="decimal" value="'+rv.avg+'" style="width:64px;text-align:right" onchange="setAvgPrice(this.value)"> €</span></div>'
+   +'<p class="hint" style="margin-top:8px">Quantités disponibles × prix. Les plants du stock global sans prix précis sont estimés au prix moyen ci-dessus (modifiable). Stock illimité (∞) non compté. Réservé admin.</p></div>';
 }
 function openAdmin(){renderAdminBody();document.getElementById('adminov').classList.add('show');}
 function closeAdmin(){var o=document.getElementById('adminov');if(o)o.classList.remove('show');}
