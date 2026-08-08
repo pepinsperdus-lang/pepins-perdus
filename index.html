@@ -352,7 +352,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.09';
+const APP_VERSION='2026.10';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -549,12 +549,30 @@ function boutVarCard(recs){
   const v=recs[0].v;let n=0,rr=0;recs.forEach(r=>{const bt=bTot(r);n+=bt.n;if(bt.rr)rr+=bt.rr;});
   const anyR=recs.some(r=>{const bt=bTot(r);return bt.rr>0||bt.taux!=null;});
   const t=(n&&anyR)?rr/n:null;
-  const seasons=recs.slice().sort((a,b)=>(a.typ==='hiver'?0:1)-(b.typ==='hiver'?0:1));
-  const seasLbl=seasons.map(r=>r.typ==='été'?'☀️':'❄️').join(' ');
-  const head=`<div class="ent"><div class="av" style="background:#4b7f52">🪴</div>`+
-    `<div class="m"><b>${v}</b><span>${n} pièces · ${seasLbl} ${seasons.length} saisons</span></div>`+
-    `<div class="pill ${tauxClass(t)}">${t==null?'à suivre':pct(t)+'%'}</div></div>`;
-  return head+seasons.map(boutSeasonLine).join('');
+  const subs=[...new Set(recs.map(r=>subLabel(r.substrat)).filter(Boolean))];
+  const detail=subs.length?subs.length+' substrat'+(subs.length>1?'s':''):recs.length+' lots';
+  const chev='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c3cabf" stroke-width="2.4" style="flex:none"><path d="M9 6l6 6-6 6"/></svg>';
+  return `<div class="ent" onclick="openBoutVar('${escJs(v)}')" style="cursor:pointer"><div class="av" style="background:#4b7f52">🪴</div>`+
+    `<div class="m"><b>${v}</b><span>${fmt(n)} pièces · ${detail}</span></div>`+
+    `<div class="pill ${tauxClass(t)}">${t==null?'à suivre':pct(t)+'%'}</div>${chev}</div>`;
+}
+function openBoutVar(v){
+  var rs=bouts().filter(function(r){return r.v===v;});
+  if(state.btyp&&state.btyp!=='tout')rs=rs.filter(function(r){return r.typ===state.btyp;});
+  rs.sort(function(a,b){return (a.typ==='hiver'?0:1)-(b.typ==='hiver'?0:1)||String(a.substrat||'').localeCompare(String(b.substrat||''),'fr');});
+  var n=0,rr=0,anyR=false;rs.forEach(function(r){var bt=bTot(r);n+=bt.n;if(bt.rr)rr+=bt.rr;if(bt.rr>0||bt.taux!=null)anyR=true;});
+  var tg=(n&&anyR)?rr/n:null;
+  var rows=rs.map(function(r){var bt=bTot(r);var t=bt.taux;var best=bBest(r);var ete=r.typ==='été';
+    var lbl=(ete?'Été':'Hiver')+' '+(r.annee||'')+(subLabel(r.substrat)?' · '+r.substrat:'');
+    var sub=[bt.n+' pièces',bt.rr?bt.rr+' reprises':null,best?'opt. '+best:null,r.date||null].filter(Boolean).join(' · ');
+    return '<div class="ent" onclick="closeSheet();openRec(\''+r.id+'\')" style="cursor:pointer"><div class="av" style="background:'+(ete?'#c99a3c':'#6a93bf')+';font-size:15px">'+(ete?'☀️':'❄️')+'</div><div class="m"><b>'+esc(lbl)+'</b><span>'+sub+'</span></div><div class="pill '+tauxClass(t)+'">'+(t==null?'à suivre':pct(t)+'%')+'</div></div>';
+  }).join('');
+  $('#sheetbody').innerHTML='<div class="grab"></div><h2 style="font-size:20px;margin:0 0 2px">'+esc(v)+'</h2>'
+    +'<p class="dsub">'+fmt(n)+' pièces'+(tg!=null?' · '+pct(tg)+'% global':'')+'</p>'
+    +'<div class="sec">Par substrat / saison</div>'+rows
+    +'<p class="hint" style="margin-top:10px">Tape un lot pour saisir/éditer ses reprises par dosage.</p>'
+    +'<button class="ghost" style="margin-top:10px" onclick="closeSheet()">Fermer</button>';
+  $('#ov').classList.add('show');
 }
 
 function renderBoutures(){
@@ -724,7 +742,7 @@ function sheetGreffe(){const r=cur;
    ${fld('Invendus','e-inv',r.invendus)}
    <div class="mrow"><span>Rupture (date)</span><input type="date" class="miniinp" style="width:140px" id="e-rup" value="${r.rupture&&/^\d{4}-\d\d-\d\d/.test(r.rupture)?r.rupture.slice(0,10):''}"></div>
    <div class="sec" style="margin-top:14px">Calculs auto</div><div id="calcs"></div>
-   <button class="save" style="margin-top:12px" onclick="saveG()">Enregistrer</button>
+   <button class="save" id="sheet-save" disabled style="margin-top:12px;opacity:.45" onclick="saveG()">Enregistrer</button>
    <button class="del" onclick="delRec()">Supprimer</button>`;
   const upd=()=>{const t={...r,prev:iv('e-prev'),eff:iv('e-eff'),rep:iv('e-rep'),regr:iv('e-regr'),rep2:iv('e-rep2'),invendus:iv('e-inv')};
     $('#calcs').innerHTML=`<div class="mrow"><span>Taux de reprise</span><b>${shw(tauxReprise(t),1)}</b></div><div class="mrow"><span>Disponible</span><b>${shw(dispo(t))}</b></div><div class="mrow"><span>Vendus</span><b>${shw(vendus(t))}</b></div><div class="mrow"><span>Taux de vente</span><b>${shw(tauxVente(t),1)}</b></div><div class="mrow"><span>Rendement final</span><b>${shw(rendement(t),1)}</b></div>`;};
@@ -738,7 +756,7 @@ function sheetBouture(){const r=cur;const keys=Object.keys(r.doses).length?Objec
    ${keys.map((k,i)=>`<span class="dl">${k}</span><input class="miniinp" id="bn${i}" inputmode="numeric" value="${r.doses[k]&&r.doses[k].n!=null?r.doses[k].n:''}"><input class="miniinp" id="br${i}" inputmode="numeric" value="${r.doses[k]&&r.doses[k].r!=null?r.doses[k].r:''}">`).join('')}</div>
    <div class="sec" style="margin-top:8px">Résultat</div><div id="bcalc"></div>
    <div class="sec" style="margin-top:12px">Repiquage &rarr; stock global</div><div id="repiq"></div>
-   <button class="save" style="margin-top:12px" onclick='saveB(${JSON.stringify(keys)})'>Enregistrer</button>
+   <button class="save" id="sheet-save" disabled style="margin-top:12px;opacity:.45" onclick='saveB(${JSON.stringify(keys)})'>Enregistrer</button>
    <button class="del" onclick="delRec()">Supprimer</button>`;
   const upd=()=>{const d={};keys.forEach((k,i)=>d[k]={n:iv('bn'+i),r:iv('br'+i)});const t={...r,doses:d};const bt=bTot(t);
     $('#bcalc').innerHTML=`<div class="mrow"><span>Total boutures</span><b>${fmt(bt.n)}</b></div><div class="mrow"><span>Taux de reprise global</span><b>${shw(bt.taux,1)}</b></div><div class="mrow"><span>Dosage optimal</span><b>${bBest(t)||'—'}</b></div>`;};
@@ -772,7 +790,7 @@ function sheetSemis(){const r=cur;
    <div class="sec">Semis</div>
    ${fld('Graines semées','e-sem',r.sem)}${fld('Levées','e-lev',r.lev)}
    <div class="sec" style="margin-top:14px">Calcul auto</div><div id="scalc"></div>
-   <button class="save" style="margin-top:12px" onclick="saveS()">Enregistrer</button>
+   <button class="save" id="sheet-save" disabled style="margin-top:12px;opacity:.45" onclick="saveS()">Enregistrer</button>
    <button class="del" onclick="delRec()">Supprimer</button>`;
   const upd=()=>{const t={...r,sem:iv('e-sem'),lev:iv('e-lev')};$('#scalc').innerHTML=`<div class="mrow"><span>Taux de levée</span><b>${shw(tauxLevee(t),1)}</b></div><div class="mrow"><span>Levées</span><b>${shw(iv('e-lev'))}</b></div>`;};
   upd();['e-sem','e-lev'].forEach(id=>document.getElementById(id).addEventListener('input',upd));
@@ -1139,18 +1157,39 @@ function arrosToggle(z){if(!ARROS.zones[z])ARROS.zones[z]={prog:'',on:true};ARRO
 var PM_LIGNES=['A','B','C','D','E','F'];
 var PIEDS={notes:{}};
 function loadPieds(){try{var s=JSON.parse(localStorage.getItem('pepins_pieds_v1')||'null');if(s&&s.notes){PIEDS=s;}}catch(e){}if(!PIEDS.notes)PIEDS.notes={};
-  try{if(PIEDS.plan&&PIEDS.plan['Serre D (grimpante poto)']&&!PIEDS.plan['Serre D grimpante']){var np={};Object.keys(PIEDS.plan).forEach(function(k){np[k==='Serre D (grimpante poto)'?'Serre D grimpante':k]=PIEDS.plan[k];});PIEDS.plan=np;savePieds();}}catch(e){}}
+  try{if(PIEDS.plan&&PIEDS.plan['Serre D (grimpante poto)']&&!PIEDS.plan['Serre D grimpante']){var np={};Object.keys(PIEDS.plan).forEach(function(k){np[k==='Serre D (grimpante poto)'?'Serre D grimpante':k]=PIEDS.plan[k];});PIEDS.plan=np;savePieds();}}catch(e){}
+  try{if(PIEDS.plan&&(PIEDS.plan['Verger']||Object.keys(PIEDS.plan).some(function(k){return /^Rang\s/i.test(k);}))){PIEDS.plan=piedsMigrateLines(PIEDS.plan);savePieds();}}catch(e){}}
 function savePieds(){try{localStorage.setItem('pepins_pieds_v1',JSON.stringify(PIEDS));}catch(e){}cloudPush('pieds',PIEDS);}
 var piedsOpenZone=null,piedsOpenFam=null;
 var PIEDS_FAM_ORDER=['Verger','Asiminiers','Serres','Pergolas','Forêt-jardin','Autres'];
 function piedsFam(z){var zl=(z||'').toLowerCase();
   if(z==='Verger')return 'Verger';
+  if(zl.indexOf('ligne')===0)return 'Verger';
+  if(zl.indexOf('rang')===0)return 'Verger';
   if(z==='Asiminier')return 'Asiminiers';
   if(zl.indexOf('serre')===0)return 'Serres';
   if(zl.indexOf('foret jardin')===0||zl.indexOf('forêt jardin')===0)return 'Forêt-jardin';
-  if(zl.indexOf('rang')===0)return 'Verger';
   if(zl.indexOf('pergola')===0)return 'Pergolas';
   return 'Autres';}
+function piedsLetter(z){var mm=/^(?:ligne|rang)\s+([A-Za-z]+)/i.exec(z||'');return mm?mm[1].toUpperCase():'';}
+function piedsMigrateLines(plan){
+  if(!plan)return plan;
+  var out={};
+  Object.keys(plan).forEach(function(k){
+    if(k==='Verger'){
+      var arr=plan[k]||[];var cur='Z';var lines={};var seen=[];
+      arr.forEach(function(e){var code=(e[0]||'');var m=/^([A-Za-z]+)/.exec(code);if(m)cur=m[1].toUpperCase();var zn='Ligne '+cur;if(!lines[zn]){lines[zn]=[];seen.push(zn);}lines[zn].push(e);});
+      seen.sort(function(a,b){return piedsLetter(a).localeCompare(piedsLetter(b),'fr');});
+      seen.forEach(function(zn){out[zn]=lines[zn];});
+    } else {
+      var mm=/^Rang\s+([A-Za-z]+)/i.exec(k);
+      out[mm?('Ligne '+mm[1].toUpperCase()):k]=plan[k];
+    }
+  });
+  return out;
+}
+var PIEDS_BASE=null;
+function piedsBase(){if(!PIEDS_BASE)PIEDS_BASE=piedsMigrateLines(PIEDSDATA);return PIEDS_BASE;}
 function piedsNat(a,b){return a.replace(/\d+/g,function(n){return n.padStart(6,'0');}).localeCompare(b.replace(/\d+/g,function(n){return n.padStart(6,'0');}),'fr');}
 function piedsFamMap(){var m={};Object.keys(PIEDSDATA).forEach(function(z){var f=piedsFam(z);(m[f]=m[f]||[]).push(z);});Object.keys(m).forEach(function(f){m[f].sort(piedsNat);});return m;}
 function escAttr(s){return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
@@ -1162,8 +1201,8 @@ function especeName(v){v=(v||'').trim();if(!v)return 'Autres';var cap=function(w
   if(w.length>=3&&w[1].toLowerCase()===w[0].toLowerCase())return cap(w[0])+' '+w[2].toLowerCase();
   if(w.length>=2)return cap(w[0])+' '+w[1].toLowerCase();
   return cap(w[0]);}
-function piedsGet(){return (PIEDS&&PIEDS.plan)?PIEDS.plan:PIEDSDATA;}
-function piedsEnsure(){if(!PIEDS.plan){PIEDS.plan=JSON.parse(JSON.stringify(PIEDSDATA));}return PIEDS.plan;}
+function piedsGet(){return (PIEDS&&PIEDS.plan)?PIEDS.plan:piedsBase();}
+function piedsEnsure(){if(!PIEDS.plan){PIEDS.plan=JSON.parse(JSON.stringify(piedsBase()));}return PIEDS.plan;}
 var piedsEdit=null,piedsAdd=null,piedsAddType='P',piedsRenameZ=null;
 function piedsRenameStart(z){piedsRenameZ=z;piedsEdit=null;renderPieds();setTimeout(function(){var e=document.getElementById('pz-name');if(e){e.focus();try{e.select();}catch(_){}}},60);}
 function piedsRenameCancel(){piedsRenameZ=null;renderPieds();}
@@ -1207,7 +1246,7 @@ function piedsPositions(arr){
 function piedsFamToggle(f){piedsOpenFam=(piedsOpenFam===f?null:f);piedsOpenZone=null;renderPieds();}
 function piedsZoneToggle(z){piedsOpenZone=(piedsOpenZone===z?null:z);renderPieds();}
 function piedsFlatRow(z,i,row,n){
-  var code='Z'+(i+1);
+  var L=piedsLetter(z);var code=(L?L:'#')+(i+1);
   if(piedsEdit&&piedsEdit.z===z&&piedsEdit.idx===i){
     var B='border:none;border-radius:9px;padding:8px 11px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer;background:#e4ebe0;color:#3f7350';
     var BD='border:none;border-radius:9px;padding:8px 12px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer;background:#fbeeea;color:#b0512c;margin-left:auto';
@@ -1440,6 +1479,7 @@ function init(){
   }
   fillForm();renderHome();
   try{var _f=document.querySelector('.nav .fab');if(_f)_f.style.display='none';}catch(e){}
+  try{var _sb=document.getElementById('sheetbody');if(_sb&&!_sb._saveHook){_sb._saveHook=1;_sb.addEventListener('input',function(){var b=document.getElementById('sheet-save');if(b){b.disabled=false;b.style.opacity='1';}});}}catch(e){}
 }
 showGateIfNeeded();
 setTimeout(appBoot,4500);
