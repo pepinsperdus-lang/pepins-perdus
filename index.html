@@ -19,7 +19,7 @@ html,body{margin:0;padding:0;height:100%}
 body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:#ffffff;color:var(--ink);display:flex;justify-content:center;height:100vh;height:100dvh;overflow:hidden;overscroll-behavior:none}
 .phone{width:100%;max-width:430px;background:var(--cream);height:100vh;height:100dvh;position:relative;box-shadow:0 30px 80px rgba(0,0,0,.18);overflow:hidden;display:flex;flex-direction:column}
 h1,h2,h3,.serif{font-family:'Fraunces',Georgia,serif}
-.top{background:linear-gradient(160deg,#245036,#1c3627 90%);color:#f4efe2;padding:calc(16px + env(safe-area-inset-top)) 20px 20px;position:relative;overflow:hidden;flex:none}
+.top{background:linear-gradient(160deg,#245036,#1c3627 90%);color:#f4efe2;padding:calc(12px + env(safe-area-inset-top)) 20px 12px;position:relative;overflow:hidden;flex:none}
 .top::after{content:"";position:absolute;right:-40px;top:-40px;width:170px;height:170px;background:radial-gradient(circle,rgba(143,185,150,.25),transparent 70%);pointer-events:none}
 .brandrow{display:flex;align-items:center;gap:11px;position:relative;z-index:2}
 .leaf{width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.12);display:grid;place-items:center;flex:none}
@@ -28,7 +28,7 @@ h1,h2,h3,.serif{font-family:'Fraunces',Georgia,serif}
 .gear{margin-left:auto;background:rgba(255,255,255,.12);border:none;width:36px;height:36px;border-radius:11px;display:grid;place-items:center}
 .hi{margin-top:14px;font-family:'Fraunces';font-weight:500;font-size:20px;line-height:1.15}
 .hi small{display:block;font-family:'Inter';font-size:12px;color:#aec6b2;font-weight:400;margin-top:3px}
-.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 15px 92px}
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:12px 15px 78px}
 .view{display:none;animation:fade .28s ease}.view.on{display:block}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .sec{font-size:12px;font-weight:600;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);margin:4px 2px 10px;display:flex;justify-content:space-between;align-items:center}
@@ -100,7 +100,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
 .tree{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--moss2);opacity:.55}
 .toast{position:fixed;left:50%;bottom:98px;transform:translateX(-50%) translateY(30px);background:var(--forest);color:#fff;padding:12px 20px;border-radius:30px;font-size:14px;font-weight:600;box-shadow:0 12px 30px rgba(0,0,0,.3);opacity:0;transition:.35s;z-index:120;pointer-events:none;max-width:90%;text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.nav{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;padding:8px 4px max(10px,env(safe-area-inset-bottom));z-index:50}
+.nav{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.94);backdrop-filter:blur(12px);border-top:1px solid var(--line);display:flex;padding:5px 4px max(6px,calc(env(safe-area-inset-bottom) - 12px));z-index:50}
 .nav button{flex:1;border:none;background:none;display:flex;flex-direction:column;align-items:center;gap:3px;color:#9aa79d;font-size:10px;font-weight:600;font-family:inherit}
 .nav button.on{color:var(--forest)}
 .nav .fab{margin-top:-28px}
@@ -136,7 +136,6 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <div class="brand"><b>Pépins Perdus</b><span>Traçabilité pépinière</span></div>
       <button class="gear" onclick="openMenu()" title="Menu"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#cfe4d2" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><button class="gear" onclick="openSettings()" style="margin-left:8px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#cfe4d2" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H7a1.6 1.6 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 2.7 1.1 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/></svg></button>
     </div>
-    <div class="hi">Bonjour Lancelot 🌱<small id="herosub">Saison 2026</small></div>
   </div>
   <div class="scroll">
     <section class="view on" id="v-home">
@@ -229,7 +228,11 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
 
     <section class="view" id="v-stats">
       <h2 style="margin:2px 2px 8px;font-size:22px;font-weight:600">Statistiques</h2>
-      <div class="sec" style="margin-top:6px">Hormones de bouturage — taux de reprise</div>
+      <div class="sec" style="margin-top:6px">Greffes — taux de reprise par espèce</div>
+      <div class="card" id="g-esp-stats"></div>
+      <div class="sec" style="margin-top:20px">Boutures — taux de reprise par espèce</div>
+      <div class="card" id="b-esp-stats"></div>
+      <div class="sec" style="margin-top:20px">Hormones de bouturage — taux de reprise</div>
       <div class="card" id="hormstats"></div>
       <div class="sec" style="margin-top:20px">Performance par opérateur</div>
       <div class="card" id="opstats"></div>
@@ -333,7 +336,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
   <nav class="nav">
     <button class="on" data-v="home" onclick="go('home',this)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/></svg>Accueil</button>
     <button data-v="greffes" onclick="go('greffes',this)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V8M12 8a4 4 0 0 1 4-4h2v2a4 4 0 0 1-4 4h-2M12 12a4 4 0 0 0-4-4H6v2a4 4 0 0 0 4 4h2"/></svg>Greffes</button>
-    <button class="fab" data-v="add" onclick="go('add',this)"><span class="c"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg></span></button>
+    <button class="fab" data-v="add" onclick="fabAdd()"><span class="c"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6"><path d="M12 5v14M5 12h14"/></svg></span></button>
     <button data-v="boutures" onclick="go('boutures',this)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6M12 8c-3 0-5 2-5 5v7h10v-7c0-3-2-5-5-5z"/></svg>Boutures</button>
     <button data-v="menu" onclick="openMenu()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Menu</button>
   </nav>
@@ -349,7 +352,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.06';
+const APP_VERSION='2026.07';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -388,8 +391,10 @@ function go(v,btn){show(v);document.querySelectorAll('.nav button').forEach(b=>b
 function show(v){try{var _pv=(document.querySelector('.view.on')||{}).id;_pv=_pv?_pv.replace('v-',''):null;if(!window._goingBack&&_pv&&_pv!==v){navHist.push(_pv);if(navHist.length>40)navHist.shift();}window._goingBack=false;}catch(e){}document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));$('#v-'+v).classList.add('on');$('.scroll').scrollTop=0;
   if(v==='home')renderHome();if(v==='greffes')renderGreffes();if(v==='boutures')renderBoutures();if(v==='semis')renderSemis();if(v==='cmd')renderCmd();if(v==='stats')renderStats();if(v==='plan')renderPlan();if(v==='cat')renderCat();if(v==='semences')renderSemences();if(v==='elevage')renderElevage();if(v==='stock')renderStock();if(v==='todo')renderTodo();if(v==='arrosage')renderArros();if(v==='pieds')renderPieds();if(v==='hormones')renderHormones();
   // nav highlight for quicklink views
-  if(['stats','plan','cat','semences','semis','elevage','stock','todo','arrosage','pieds','hormones'].includes(v)){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));}}
+  if(['stats','plan','cat','semences','semis','elevage','stock','todo','arrosage','pieds','hormones'].includes(v)){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));}
+  try{var _fab=document.querySelector('.nav .fab');if(_fab)_fab.style.display=(v==='greffes'||v==='boutures'||v==='semis'||v==='add')?'':'none';}catch(e){}}
 
+function fabAdd(){var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');var m=(cur==='boutures')?'bouture':(cur==='semis')?'semis':'greffe';state.mode=m;go('add',navBtn('add'));try{var b=document.querySelector('.seg [data-mode=\"'+m+'\"]');if(b)mode(m,b);}catch(e){}}
 function mode(m,btn){state.mode=m;document.querySelectorAll('.seg [data-mode]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   $('#greffe-fields').style.display=m==='greffe'?'block':'none';$('#bouture-fields').style.display=m==='bouture'?'block':'none';$('#semis-fields').style.display=m==='semis'?'block':'none';
   $('#savebtn').textContent=m==='greffe'?'Enregistrer la greffe':(m==='bouture'?'Enregistrer la bouture':'Enregistrer le semis');}
@@ -442,7 +447,7 @@ function renderHome(){
    pieds:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V13"/><path d="M12 13a5 5 0 1 0-5-5 5 5 0 0 0 5 5z"/><path d="M9 22h6"/></svg>'
   };
   var Q=[
-   {i:'plan',l:'Planches de culture',v:'plan'},{i:'cat',l:'Catalogue',v:'cat'},{i:'stats',l:'Stats',v:'stats'},
+   {i:'plan',l:'Planches de culture',v:'plan'},{i:'stats',l:'Stats',v:'stats'},
    {i:'elev',l:'Stock global',v:'elevage'},{i:'stock',l:'Stock',v:'stock'},{i:'task',l:'Tâches',v:'todo'},
    {i:'arros',l:'Arrosages',v:'arrosage'},{i:'pieds',l:'Pieds-mères',v:'pieds'}
   ];
@@ -480,9 +485,28 @@ function greffeVarCard(recs){
   const v=recs[0].v;let eff=0,rep=0,anyR=false;recs.forEach(r=>{eff+=r.eff||0;if(r.rep!=null){rep+=r.rep;anyR=true;}});
   const t=(eff&&anyR)?rep/eff:null;const cls=tauxClass(t);
   const pgs=[...new Set(recs.map(r=>r.pg).filter(Boolean))];
-  const head=`<div class="ent"><div class="av" style="background:${colors[hashi(recs[0].famille||v)]}">${initials(v)}</div><div class="m"><b>${v}</b><span>${fmt(eff)} greffes · ${pgs.length} porte-greffe${pgs.length>1?'s':''}</span></div><div class="pill ${cls}">${t==null?'à suivre':pct(t)+'%'}</div></div>`;
-  const subs=recs.slice().sort((a,b)=>(a.pg||'').localeCompare(b.pg||'','fr')).map(greffeSubLine).join('');
-  return head+subs;
+  const chev='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c3cabf" stroke-width="2.4" style="flex:none"><path d="M9 6l6 6-6 6"/></svg>';
+  return `<div class="ent" onclick="openGreffeVar('${escJs(v)}')" style="cursor:pointer"><div class="av" style="background:${colors[hashi(recs[0].famille||v)]}">${initials(v)}</div><div class="m"><b>${v}</b><span>${fmt(eff)} greffes · ${pgs.length} porte-greffes</span></div><div class="pill ${cls}">${t==null?'à suivre':pct(t)+'%'}</div>${chev}</div>`;
+}
+function escJs(s){return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;');}
+function openGreffeVar(v){
+  var recs=greffes().filter(function(r){return r.v===v&&r.annee===state.gYear;});
+  if(!recs.length)recs=greffes().filter(function(r){return r.v===v;});
+  recs.sort(function(a,b){return (a.pg||'').localeCompare(b.pg||'','fr');});
+  var eff=0,rep=0,anyR=false;recs.forEach(function(r){eff+=r.eff||0;if(r.rep!=null){rep+=r.rep;anyR=true;}});
+  var t=(eff&&anyR)?rep/eff:null;
+  var rows=recs.map(function(r){
+    var tt=tauxReprise(r);var c=r.rupture?'pr':tauxClass(tt);
+    var lab=r.rupture?'rupture':(tt==null?(r.greffe==='oui'?'à suivre':(r.prev?'prévu '+r.prev:'—')):pct(tt)+'%');
+    var sub=[r.eff?r.eff+' greffées':(r.prev?r.prev+' prévues':'—'),r.rep!=null?r.rep+' reprises':null,r.rang?'rang '+r.rang:null].filter(Boolean).join(' · ');
+    return '<div class="ent" onclick="closeSheet();openRec(\''+r.id+'\')" style="cursor:pointer"><div class="av" style="background:#6a8f5e;font-size:11px">'+((r.pg||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,3)||'PG')+'</div><div class="m"><b>'+esc(r.pg||'Sans porte-greffe')+'</b><span>'+sub+'</span></div><div class="pill '+c+'">'+lab+'</div></div>';
+  }).join('');
+  $('#sheetbody').innerHTML='<div class="grab"></div><h2 style="font-size:20px;margin:0 0 2px">'+esc(v)+'</h2>'
+    +'<p class="dsub">'+recs.length+' porte-greffes · '+fmt(eff)+' greffées'+(t!=null?' · '+pct(t)+'% global':'')+'</p>'
+    +'<div class="sec">Par porte-greffe</div>'+rows
+    +'<p class="hint" style="margin-top:10px">Tape un porte-greffe pour saisir/éditer ses reprises.</p>'
+    +'<button class="ghost" style="margin-top:10px" onclick="closeSheet()">Fermer</button>';
+  $('#ov').classList.add('show');
 }
 function renderGreffes(){
   renderYearSegs();
@@ -568,6 +592,13 @@ function renderStats(){
   const order=['1 %','0,8 %','0,5 %','0,25 %','0,1 %','Sans hormone','SH'];
   const keys=Object.keys(dz).sort((a,b)=>(order.indexOf(a)+99*(order.indexOf(a)<0))-(order.indexOf(b)+99*(order.indexOf(b)<0)));
   $('#hormstats').innerHTML=keys.length?keys.map(k=>{const d=dz[k];const t=d.n?Math.round(d.r/d.n*100):0;return `<div class="row"><div class="bar"><div class="t"><span>${k} ${k===best?'<span class=badge>optimal</span>':''}</span><em>${d.r}/${d.n} · ${t}%</em></div><div class="track"><div class="fill w" style="width:${t}%"></div></div></div></div>`;}).join(''):emptyBox('Aucune bouture');
+  var espBar=function(label,a,b,t){var p=Math.round(t*100);var col=(p>=70?'#3f7350':(p>=40?'#c99a3c':'#b0512c'));return '<div class="row"><div class="bar"><div class="t"><span>'+esc(label)+'</span><em>'+fmt(a)+'/'+fmt(b)+' · '+p+'%</em></div><div class="track"><div class="fill" style="width:'+p+'%;background:'+col+'"></div></div></div></div>';};
+  var gesp={};greffes().forEach(function(r){var f=r.famille||'Autres';gesp[f]=gesp[f]||{eff:0,rep:0};gesp[f].eff+=r.eff||0;if(r.rep!=null)gesp[f].rep+=r.rep;});
+  var ge=Object.keys(gesp).filter(function(f){return gesp[f].eff>0;}).map(function(f){return {f:f,eff:gesp[f].eff,rep:gesp[f].rep,t:gesp[f].rep/gesp[f].eff};}).sort(function(a,b){return b.t-a.t;});
+  if($('#g-esp-stats'))$('#g-esp-stats').innerHTML=ge.length?ge.map(function(x){return espBar(x.f,x.rep,x.eff,x.t);}).join(''):emptyBox('Aucune reprise renseignée');
+  var besp={};bouts().forEach(function(r){var f=r.famille||'Autres';besp[f]=besp[f]||{n:0,r:0};for(var k in r.doses){var c=r.doses[k];if(c.n)besp[f].n+=c.n;if(c.r)besp[f].r+=c.r;}});
+  var be=Object.keys(besp).filter(function(f){return besp[f].n>0;}).map(function(f){return {f:f,n:besp[f].n,r:besp[f].r,t:besp[f].r/besp[f].n};}).sort(function(a,b){return b.t-a.t;});
+  if($('#b-esp-stats'))$('#b-esp-stats').innerHTML=be.length?be.map(function(x){return espBar(x.f,x.r,x.n,x.t);}).join(''):emptyBox('Aucune bouture renseignée');
   const ops={};DATA.operateurs.forEach(o=>ops[o]={eff:0,rep:0});
   greffes().forEach(r=>{if(r.op&&ops[r.op]){ops[r.op].eff+=r.eff||0;ops[r.op].rep+=r.rep||0;}});
   const has=Object.values(ops).some(o=>o.eff);const mx=Math.max(1,...Object.values(ops).map(o=>o.eff));
@@ -1127,7 +1158,7 @@ function piedsGet(){return (PIEDS&&PIEDS.plan)?PIEDS.plan:PIEDSDATA;}
 function piedsEnsure(){if(!PIEDS.plan){PIEDS.plan=JSON.parse(JSON.stringify(PIEDSDATA));}return PIEDS.plan;}
 var piedsEdit=null,piedsAdd=null,piedsAddType='P';
 function piedsStartEdit(z,idx){piedsEdit={z:z,idx:idx};piedsAdd=null;renderPieds();}
-function piedsStartAdd(z){piedsAdd=z;piedsEdit=null;piedsAddType='P';renderPieds();}
+function piedsStartAdd(z){var plan=piedsEnsure();if(!plan[z])plan[z]=[];plan[z].push(['','','P','']);savePieds();piedsAdd=null;piedsEdit={z:z,idx:plan[z].length-1};renderPieds();setTimeout(function(){var e=document.getElementById('pe-nom');if(e)e.focus();},60);}
 function piedsCancel(){piedsEdit=null;piedsAdd=null;renderPieds();}
 function piedsAddTypeSet(t){piedsAddType=t;renderPieds();}
 function piedsNextPos(arr){var pref='',max=0,any=false;arr.forEach(function(r){if(r[2]==='P'&&r[0]){var m=/^(\D*)(\d+)$/.exec(r[0]);if(m){any=true;pref=m[1];var n=parseInt(m[2],10);if(n>max)max=n;}}});return any?(pref+(max+1)):'1';}
@@ -1153,11 +1184,7 @@ function piedsAddForm(z){var src=piedsGet();var princ=(src[z]||[]).map(function(
     '<div style="display:flex;gap:8px"><button onclick="piedsDoAdd(\''+escAttr(z)+'\')" style="flex:1;background:#3f7350;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;font-family:inherit">Ajouter</button>'+
     '<button onclick="piedsCancel()" style="background:#eef1ec;border:none;border-radius:10px;padding:10px 14px;font-family:inherit">Annuler</button></div></div>';}
 function piedsZoneTools(z){
-  var h='';
-  if(piedsEdit&&piedsEdit.z===z)h+=piedsEditForm(z);
-  if(piedsAdd===z)h+=piedsAddForm(z);
-  else h+='<button onclick="piedsStartAdd(\''+escAttr(z)+'\')" style="display:block;width:100%;background:#eef3ea;color:#3f7350;border:1px dashed #b8ccb5;border-radius:11px;padding:10px;font-weight:700;font-family:inherit;margin:6px 0 8px;cursor:pointer">＋ Ajouter une plante</button>';
-  return h;
+  return '<button onclick="piedsStartAdd(\''+escAttr(z)+'\')" style="display:block;width:100%;background:#eef3ea;color:#3f7350;border:1px dashed #b8ccb5;border-radius:11px;padding:10px;font-weight:700;font-family:inherit;margin:6px 0 10px;cursor:pointer">＋ Ajouter une plante</button>';
 }
 function piedsPositions(arr){
   var byPos={},order=[],loose=[];
@@ -1167,10 +1194,31 @@ function piedsPositions(arr){
 }
 function piedsFamToggle(f){piedsOpenFam=(piedsOpenFam===f?null:f);piedsOpenZone=null;renderPieds();}
 function piedsZoneToggle(z){piedsOpenZone=(piedsOpenZone===z?null:z);renderPieds();}
-function piedsEntry(P,z){
-  var chips=P.assoc.length?('<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:5px">'+P.assoc.map(function(a){return '<span onclick="piedsStartEdit(\''+escAttr(z)+'\','+a.idx+')" style="background:#f0e6cf;color:#8a6d1f;border-radius:7px;padding:2px 8px;font-size:11.5px;font-weight:600;cursor:pointer">'+esc(niceName(a.nom))+'</span>';}).join('')+'</div>'):'';
-  return '<div class="ent" style="align-items:flex-start"><div class="av" style="background:#4b7f52;font-size:11.5px;font-weight:700;flex:none">'+esc(P.pos||'●')+'</div><div class="m"><b>'+esc(niceName(P.nom))+'</b>'+chips+'</div><button onclick="piedsStartEdit(\''+escAttr(z)+'\','+P.pidx+')" style="background:none;border:none;color:#9fb0a2;font-size:15px;padding:4px 8px;flex:none;cursor:pointer" title="Modifier">✎</button></div>';
+function piedsFlatRow(z,i,row,n){
+  var code='Z'+(i+1);
+  if(piedsEdit&&piedsEdit.z===z&&piedsEdit.idx===i){
+    var B='border:none;border-radius:9px;padding:8px 11px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer;background:#e4ebe0;color:#3f7350';
+    var BD='border:none;border-radius:9px;padding:8px 12px;font-weight:700;font-family:inherit;font-size:14px;cursor:pointer;background:#fbeeea;color:#b0512c;margin-left:auto';
+    return '<div class="card" style="padding:11px;margin:5px 0;background:#f4f8f1">'
+     +'<div style="font-weight:700;margin-bottom:6px;font-size:13px;color:#3f7350">'+code+'</div>'
+     +'<input id="pe-nom" class="inp" value="'+esc(row[1])+'" placeholder="Nom de la plante" style="margin-bottom:8px" onkeydown="if(event.key===\'Enter\')piedsSaveName(\''+escAttr(z)+'\','+i+')">'
+     +'<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px">'
+       +'<button onclick="piedsMove(\''+escAttr(z)+'\','+i+',-1)" '+(i===0?'disabled':'')+' style="'+B+(i===0?';opacity:.4':'')+'">↑</button>'
+       +'<button onclick="piedsMove(\''+escAttr(z)+'\','+i+',1)" '+(i===n-1?'disabled':'')+' style="'+B+(i===n-1?';opacity:.4':'')+'">↓</button>'
+       +'<button onclick="piedsInsertAfter(\''+escAttr(z)+'\','+i+')" style="'+B+'">＋ insérer</button>'
+       +'<button onclick="piedsDelRow2(\''+escAttr(z)+'\','+i+')" style="'+BD+'">🗑</button>'
+     +'</div>'
+     +'<div style="display:flex;gap:8px">'
+       +'<button onclick="piedsSaveName(\''+escAttr(z)+'\','+i+')" style="flex:1;background:#3f7350;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;font-family:inherit">Enregistrer</button>'
+       +'<button onclick="piedsCancel()" style="background:#eef1ec;border:none;border-radius:10px;padding:10px 14px;font-family:inherit">Fermer</button>'
+     +'</div></div>';
+  }
+  return '<div class="ent" onclick="piedsStartEdit(\''+escAttr(z)+'\','+i+')" style="cursor:pointer"><div class="av" style="background:#4b7f52;font-size:11px;font-weight:700;flex:none">'+code+'</div><div class="m"><b>'+esc(niceName(row[1])||'(vide)')+'</b></div><span style="color:#9fb0a2;font-size:14px;flex:none">✎</span></div>';
 }
+function piedsMove(z,i,d){var plan=piedsEnsure();var a=plan[z];if(!a)return;var j=i+d;if(j<0||j>=a.length)return;var t=a[i];a[i]=a[j];a[j]=t;savePieds();piedsEdit={z:z,idx:j};renderPieds();}
+function piedsInsertAfter(z,i){var plan=piedsEnsure();var a=plan[z];if(!a)return;a.splice(i+1,0,['','','P','']);savePieds();piedsEdit={z:z,idx:i+1};renderPieds();setTimeout(function(){var e=document.getElementById('pe-nom');if(e)e.focus();},60);}
+function piedsSaveName(z,i){var el=document.getElementById('pe-nom');var nom=el?(el.value||'').trim():'';var plan=piedsEnsure();if(plan[z]&&plan[z][i]){if(!nom){plan[z].splice(i,1);}else{plan[z][i][1]=nom;}savePieds();}piedsEdit=null;renderPieds();}
+function piedsDelRow2(z,i){var plan=piedsEnsure();if(plan[z]&&plan[z][i])plan[z].splice(i,1);savePieds();piedsEdit=null;toast('Supprimé');renderPieds();}
 function renderPieds(){
   var list=document.getElementById('piedslist');if(!list)return;
   var kpiEl=document.getElementById('pieds-kpi');
@@ -1178,7 +1226,7 @@ function renderPieds(){
   var DATASRC=piedsGet();
   var q=((document.getElementById('pieds-q')||{}).value||'').trim().toLowerCase();
   var zones=Object.keys(DATASRC);
-  var totPlants=0,totPos=0;zones.forEach(function(z){DATASRC[z].forEach(function(r){totPlants++;if(r[2]==='P')totPos++;});});
+  var totPlants=0,totPos=0;zones.forEach(function(z){DATASRC[z].forEach(function(r){totPlants++;totPos++;});});
   if(kpiEl)kpiEl.innerHTML='<div style="display:flex;gap:10px;margin:2px 2px 12px">'+
     '<div class="kpi hero" style="flex:1"><div class="n">'+fmt(totPlants)+'</div><div class="l">plantes au plan</div></div>'+
     '<div class="kpi" style="flex:1"><div class="n">'+fmt(totPos)+'</div><div class="l">emplacements</div></div>'+
@@ -1208,16 +1256,12 @@ function renderPieds(){
       zs.forEach(function(z){
         var arr=DATASRC[z];var zpos=arr.filter(function(r){return r[2]==='P';}).length;var zopen=(piedsOpenZone===z);
         if(zs.length===1&&f!=='Autres'){
-          var pp=piedsPositions(arr);
+          h+=arr.map(function(row,i){return piedsFlatRow(z,i,row,arr.length);}).join('');
           h+='<div style="padding:2px 2px 0">'+piedsZoneTools(z)+'</div>';
-          h+=pp.positions.map(function(P){return piedsEntry(P,z);}).join('');
-          if(pp.loose.length)h+='<div class="ent"><div class="av" style="background:#c99a3c;flex:none">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp.loose.map(function(a){return niceName(a.nom);}).join(', '))+'</span></div></div>';
         }else{
-          h+='<div class="ent" style="cursor:pointer;background:'+(zopen?'#f4f8f1':'')+'" onclick="piedsZoneToggle(\''+escAttr(z)+'\')"><div class="av" style="background:'+(zopen?'#4b7f52':'#9fbfa6')+';font-size:12px;flex:none">'+(zopen?'▾':'▸')+'</div><div class="m"><b>'+esc(z)+'</b><span>'+zpos+' emplacement'+(zpos>1?'s':'')+'</span></div></div>';
+          h+='<div class="ent" style="cursor:pointer;background:'+(zopen?'#f4f8f1':'')+'" onclick="piedsZoneToggle(\''+escAttr(z)+'\')"><div class="av" style="background:'+(zopen?'#4b7f52':'#9fbfa6')+';font-size:12px;flex:none">'+(zopen?'▾':'▸')+'</div><div class="m"><b>'+esc(z)+'</b><span>'+arr.length+' plante'+(arr.length>1?'s':'')+'</span></div></div>';
           if(zopen){
-            var pp2=piedsPositions(arr);
-            h+='<div style="padding-left:10px;border-left:3px solid #e2ebdd;margin:2px 0 6px">'+piedsZoneTools(z)+pp2.positions.map(function(P){return piedsEntry(P,z);}).join('')+'</div>';
-            if(pp2.loose.length)h+='<div class="ent"><div class="av" style="background:#c99a3c;flex:none">+</div><div class="m"><b>Associées non rattachées</b><span>'+esc(pp2.loose.map(function(a){return niceName(a.nom);}).join(', '))+'</span></div></div>';
+            h+='<div style="padding-left:10px;border-left:3px solid #e2ebdd;margin:2px 0 6px">'+arr.map(function(row,i){return piedsFlatRow(z,i,row,arr.length);}).join('')+piedsZoneTools(z)+'</div>';
           }
         }
       });
@@ -1229,7 +1273,7 @@ function piedsSet(l,v){PIEDS.notes[l]=v;savePieds();}
 
 // ---- MENU ☰ ----
 var siteFilter='all';
-var MENU=[['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['cat','Catalogue variétés'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
+var MENU=[['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
 function openMenu(){var b=document.getElementById('menu-body');if(!b)return;b.innerHTML=MENU.map(function(m){return '<div class="ent" onclick="menuGo(\''+m[0]+'\')" style="cursor:pointer"><div class="m"><b>'+m[1]+'</b></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c3cabf" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></div>';}).join('');document.getElementById('menuov').classList.add('show');}
 function closeMenu(){var o=document.getElementById('menuov');if(o)o.classList.remove('show');}
 function menuGo(v){closeMenu();if(v==='__settings__'){openSettings();return;}show(v);}
@@ -1380,6 +1424,7 @@ function init(){
     state.records=seed().concat(userAdded);saveDB();
   }
   fillForm();renderHome();
+  try{var _f=document.querySelector('.nav .fab');if(_f)_f.style.display='none';}catch(e){}
 }
 showGateIfNeeded();
 setTimeout(appBoot,4500);
