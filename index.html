@@ -352,7 +352,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.08';
+const APP_VERSION='2026.09';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -596,7 +596,7 @@ function renderStats(){
   var gesp={};greffes().forEach(function(r){var f=r.famille||'Autres';gesp[f]=gesp[f]||{eff:0,rep:0};gesp[f].eff+=r.eff||0;if(r.rep!=null)gesp[f].rep+=r.rep;});
   var ge=Object.keys(gesp).filter(function(f){return gesp[f].eff>0;}).map(function(f){return {f:f,eff:gesp[f].eff,rep:gesp[f].rep,t:gesp[f].rep/gesp[f].eff};}).sort(function(a,b){return b.t-a.t;});
   if($('#g-esp-stats'))$('#g-esp-stats').innerHTML=ge.length?ge.map(function(x){return espBar(x.f,x.rep,x.eff,x.t);}).join(''):emptyBox('Aucune reprise renseignée');
-  var besp={};bouts().forEach(function(r){var f=r.famille||'Autres';besp[f]=besp[f]||{n:0,r:0};for(var k in r.doses){var c=r.doses[k];if(c.n)besp[f].n+=c.n;if(c.r)besp[f].r+=c.r;}});
+  var besp={};bouts().forEach(function(r){var f=especeName(r.v);besp[f]=besp[f]||{n:0,r:0};for(var k in r.doses){var c=r.doses[k];if(c.n)besp[f].n+=c.n;if(c.r)besp[f].r+=c.r;}});
   var be=Object.keys(besp).filter(function(f){return besp[f].n>0;}).map(function(f){return {f:f,n:besp[f].n,r:besp[f].r,t:besp[f].r/besp[f].n};}).sort(function(a,b){return b.t-a.t;});
   if($('#b-esp-stats'))$('#b-esp-stats').innerHTML=be.length?be.map(function(x){return espBar(x.f,x.r,x.n,x.t);}).join(''):emptyBox('Aucune bouture renseignée');
   const ops={};DATA.operateurs.forEach(o=>ops[o]={eff:0,rep:0});
@@ -1155,6 +1155,13 @@ function piedsNat(a,b){return a.replace(/\d+/g,function(n){return n.padStart(6,'
 function piedsFamMap(){var m={};Object.keys(PIEDSDATA).forEach(function(z){var f=piedsFam(z);(m[f]=m[f]||[]).push(z);});Object.keys(m).forEach(function(f){m[f].sort(piedsNat);});return m;}
 function escAttr(s){return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function niceName(s){s=(s||'').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+function especeName(v){v=(v||'').trim();if(!v)return 'Autres';var cap=function(w){return w?w.charAt(0).toUpperCase()+w.slice(1).toLowerCase():w;};
+  var m=/^([A-Za-zÀ-ÿ]+)\s+[A-Za-zÀ-ÿ]{1,3}\.\s+([A-Za-zÀ-ÿ\-]+)/.exec(v);
+  if(m)return cap(m[1])+' '+m[2].toLowerCase();
+  var w=v.split(/\s+/);
+  if(w.length>=3&&w[1].toLowerCase()===w[0].toLowerCase())return cap(w[0])+' '+w[2].toLowerCase();
+  if(w.length>=2)return cap(w[0])+' '+w[1].toLowerCase();
+  return cap(w[0]);}
 function piedsGet(){return (PIEDS&&PIEDS.plan)?PIEDS.plan:PIEDSDATA;}
 function piedsEnsure(){if(!PIEDS.plan){PIEDS.plan=JSON.parse(JSON.stringify(PIEDSDATA));}return PIEDS.plan;}
 var piedsEdit=null,piedsAdd=null,piedsAddType='P',piedsRenameZ=null;
