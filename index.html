@@ -352,7 +352,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.14';
+const APP_VERSION='2026.15';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1443,10 +1443,15 @@ async function _cloudPushNow(key,obj){
       await _cloudPost(key+'~meta', JSON.stringify({e:enc,n:n}));
       await _cloudPost(key,'null');          // base=null so OLD app versions keep local data (no break)
     }
+    try{var _ts=localStorage.getItem(_keyLS(key)+'_ts')||String(_now());await _cloudPost(key+'~ts',_ts);}catch(_){}
     _cloudDot();
   }catch(e){}
 }
+var _KEYLS={};try{CLOUD_KEYS.forEach(function(e){_KEYLS[e.k]=e.ls;});}catch(_){}
+function _keyLS(k){return _KEYLS[k]||k;}
+function _now(){try{return Date.now();}catch(e){return 0;}}
 function cloudPush(key,obj){
+  try{localStorage.setItem(_keyLS(key)+'_ts',String(_now()));}catch(_){}   // stamp local edit time BEFORE anything
   clearTimeout(_cloudTimers[key]);
   _cloudTimers[key]=setTimeout(function(){ _cloudPushNow(key,obj); },600);
 }
@@ -1481,32 +1486,36 @@ function _isEmptyVal(key,o){
     return false;
   }catch(_){return false;}
 }
+function _localBackup(lsKey){
+  try{var cur=localStorage.getItem(lsKey);if(cur!=null&&cur!==''&&cur!=='null'){localStorage.setItem(lsKey+'_bak',cur);localStorage.setItem(lsKey+'_bakts',String(_now()));}}catch(_){}
+}
+// Non-destructive sync: local is source of truth; cloud only overrides when it is
+// genuinely newer (by edit timestamp) AND non-empty. An empty/older cloud NEVER wipes local.
 function cloudBoot(){
   if(typeof fetch!=='function')return Promise.resolve();
   return Promise.all(CLOUD_KEYS.map(function(e){
-    return _cloudReadKey(e.k).then(function(val){
-      if(val==null){_cloudEmpty[e.k]=1;return;}
-      var cloudObj;try{cloudObj=JSON.parse(val);}catch(_){_cloudEmpty[e.k]=1;return;}
-      var localStr=null,localObj=null;
+    var cloudVal=null;
+    return _cloudReadKey(e.k).then(function(v){cloudVal=v;return _cloudGet(e.k+'~ts');}).then(function(tsStr){
+      var mt=(''+tsStr).trim();
+      var cloudTs=(mt&&mt!=='Accepted'&&mt!=='null')?(parseInt(mt,10)||0):0;
+      var localStr=null,localObj=null,localTs=0;
       try{localStr=localStorage.getItem(e.ls);if(localStr)localObj=JSON.parse(localStr);}catch(_){}
-      if(_isEmptyVal(e.k,cloudObj) && localStr && !_isEmptyVal(e.k,localObj)){
-        try{cloudPush(e.k, localObj);}catch(_){}
-        return;
-      }
-      try{localStorage.setItem(e.ls,val);}catch(_){}
-      return;
+      try{localTs=parseInt(localStorage.getItem(e.ls+'_ts')||'0',10)||0;}catch(_){}
+      var cloudObj=null;if(cloudVal!=null){try{cloudObj=JSON.parse(cloudVal);}catch(_){cloudObj=null;}}
+      var cloudEmpty=(cloudVal==null)||_isEmptyVal(e.k,cloudObj);
+      var localEmpty=(localStr==null)||_isEmptyVal(e.k,localObj);
+      // 1) cloud empty/missing -> never wipe local; repair cloud from local
+      if(cloudEmpty){ if(!localEmpty){try{cloudPush(e.k,localObj);}catch(_){}} else {_cloudEmpty[e.k]=1;} return; }
+      // 2) local has real data and is newer -> keep local, push it up
+      if(!localEmpty && localTs>cloudTs){ try{cloudPush(e.k,localObj);}catch(_){} return; }
+      // 3) adopt cloud (newer or local empty) -> back up local first, then apply
+      _localBackup(e.ls);
+      try{localStorage.setItem(e.ls,cloudVal);localStorage.setItem(e.ls+'_ts',String(cloudTs||_now()));}catch(_){}
     }).catch(function(){});
   }));
 }
-function _cloudBootOld(){
-  if(typeof fetch!=='function')return Promise.resolve();
-  return Promise.all(CLOUD_KEYS.map(function(e){
-    return _cloudReadKey(e.k).then(function(val){
-      if(val!=null){try{JSON.parse(val);localStorage.setItem(e.ls,val);}catch(_){_cloudEmpty[e.k]=1;}}
-      else{_cloudEmpty[e.k]=1;}
-    }).catch(function(){});
-  }));
-}
+// Emergency restore of the last local snapshot for a given store key (run in console).
+window.pepinsRestore=function(lsKey){try{var b=localStorage.getItem(lsKey+'_bak');if(b){localStorage.setItem(lsKey,b);localStorage.setItem(lsKey+'_ts',String(_now()));return 'Restauré '+lsKey+' ('+b.length+' o). Recharge l\'appli.';}return 'Aucune sauvegarde pour '+lsKey;}catch(e){return String(e);}};
 function cloudSeedEmpty(){CLOUD_KEYS.forEach(function(e){if(_cloudEmpty[e.k]){try{cloudPush(e.k,e.get());}catch(_){}}});}
 function gateTry(){
   var i=document.getElementById('gate-in');var v=(i&&i.value||'').trim();
