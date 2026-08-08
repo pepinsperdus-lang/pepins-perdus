@@ -352,7 +352,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.10';
+const APP_VERSION='2026.11';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1179,7 +1179,7 @@ function piedsMigrateLines(plan){
     if(k==='Verger'){
       var arr=plan[k]||[];var cur='Z';var lines={};var seen=[];
       arr.forEach(function(e){var code=(e[0]||'');var m=/^([A-Za-z]+)/.exec(code);if(m)cur=m[1].toUpperCase();var zn='Ligne '+cur;if(!lines[zn]){lines[zn]=[];seen.push(zn);}lines[zn].push(e);});
-      seen.sort(function(a,b){return piedsLetter(a).localeCompare(piedsLetter(b),'fr');});
+      seen.sort(function(a,b){if(a==='Ligne Z'&&b!=='Ligne Z')return -1;if(b==='Ligne Z'&&a!=='Ligne Z')return 1;return piedsLetter(a).localeCompare(piedsLetter(b),'fr');});
       seen.forEach(function(zn){out[zn]=lines[zn];});
     } else {
       var mm=/^Rang\s+([A-Za-z]+)/i.exec(k);
@@ -1190,7 +1190,7 @@ function piedsMigrateLines(plan){
 }
 var PIEDS_BASE=null;
 function piedsBase(){if(!PIEDS_BASE)PIEDS_BASE=piedsMigrateLines(PIEDSDATA);return PIEDS_BASE;}
-function piedsNat(a,b){return a.replace(/\d+/g,function(n){return n.padStart(6,'0');}).localeCompare(b.replace(/\d+/g,function(n){return n.padStart(6,'0');}),'fr');}
+function piedsNat(a,b){if(a==='Ligne Z'&&b!=='Ligne Z')return -1;if(b==='Ligne Z'&&a!=='Ligne Z')return 1;return a.replace(/\d+/g,function(n){return n.padStart(6,'0');}).localeCompare(b.replace(/\d+/g,function(n){return n.padStart(6,'0');}),'fr');}
 function piedsFamMap(){var m={};Object.keys(PIEDSDATA).forEach(function(z){var f=piedsFam(z);(m[f]=m[f]||[]).push(z);});Object.keys(m).forEach(function(f){m[f].sort(piedsNat);});return m;}
 function escAttr(s){return (s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'");}
 function niceName(s){s=(s||'').trim();return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
