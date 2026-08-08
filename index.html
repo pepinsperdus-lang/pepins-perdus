@@ -352,7 +352,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.12';
+const APP_VERSION='2026.13';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1431,15 +1431,17 @@ function _cloudDot(){var d=document.getElementById('cloud-dot');if(d){d.style.ba
 async function _cloudPushNow(key,obj){
   try{
     var json=JSON.stringify(obj);
-    if(json.length<=CLOUD_CHUNK){ await _cloudPost(key,json); }
-    else if(typeof CompressionStream==='function'){
-      var gz=await _gzB64(json);var n=Math.ceil(gz.length/CLOUD_CHUNK);
-      for(var i=0;i<n;i++){ await _cloudPost(key+'~'+i, gz.slice(i*CLOUD_CHUNK,(i+1)*CLOUD_CHUNK)); }
-      await _cloudPost(key, JSON.stringify({__c:1,e:'gz',n:n}));
+    if(json.length<=CLOUD_CHUNK){
+      await _cloudPost(key,json);           // plain at base key (old apps read this)
+      await _cloudPost(key+'~meta','null'); // clear any stale chunk manifest
     } else {
-      var n2=Math.ceil(json.length/CLOUD_CHUNK);
-      for(var m=0;m<n2;m++){ await _cloudPost(key+'~'+m, json.slice(m*CLOUD_CHUNK,(m+1)*CLOUD_CHUNK)); }
-      await _cloudPost(key, JSON.stringify({__c:1,e:'raw',n:n2}));
+      var enc='gz',gz;
+      if(typeof CompressionStream==='function'){ gz=await _gzB64(json); }
+      else { enc='raw'; gz=json; }
+      var n=Math.ceil(gz.length/CLOUD_CHUNK);
+      for(var i=0;i<n;i++){ await _cloudPost(key+'~'+i, gz.slice(i*CLOUD_CHUNK,(i+1)*CLOUD_CHUNK)); }
+      await _cloudPost(key+'~meta', JSON.stringify({e:enc,n:n}));
+      await _cloudPost(key,'null');          // base=null so OLD app versions keep local data (no break)
     }
     _cloudDot();
   }catch(e){}
@@ -1451,17 +1453,21 @@ function cloudPush(key,obj){
 function _cloudGet(key){return fetch(CLOUD_R+'?k='+encodeURIComponent(key)+'&t='+Date.now()).then(function(r){return r.text();}).catch(function(){return '';});}
 async function _cloudReadKey(key){
   var t=await _cloudGet(key);
-  if(t==null)return null;var tt=(''+t).trim();
-  if(!tt||tt==='null'||tt==='Accepted')return null;
-  var p;try{p=JSON.parse(tt);}catch(_){return null;}
-  if(p&&p.__c){
-    var parts=[];
-    for(var i=0;i<p.n;i++){var c=await _cloudGet(key+'~'+i);if(c==null)return null;var ct=(''+c).trim();if(!ct||ct==='Accepted')return null;parts.push(c);}
-    var joined=parts.join('');
-    if(p.e==='gz'){try{return await _gunzipB64(joined);}catch(e){return null;}}
-    return joined;
+  var tt=(''+t).trim();
+  if(tt&&tt!=='null'&&tt!=='Accepted'){ try{JSON.parse(tt);return tt;}catch(_){/* maybe chunked */} }
+  var meta=await _cloudGet(key+'~meta');
+  var mt=(''+meta).trim();
+  if(mt&&mt!=='null'&&mt!=='Accepted'){
+    var p;try{p=JSON.parse(mt);}catch(_){return null;}
+    if(p&&p.n){
+      var parts=[];
+      for(var i=0;i<p.n;i++){var c=await _cloudGet(key+'~'+i);var ct=(''+c).trim();if(!ct||ct==='Accepted')return null;parts.push(c);}
+      var joined=parts.join('');
+      if(p.e==='gz'){try{return await _gunzipB64(joined);}catch(e){return null;}}
+      return joined;
+    }
   }
-  return tt;
+  return null;
 }
 function cloudBoot(){
   if(typeof fetch!=='function')return Promise.resolve();
