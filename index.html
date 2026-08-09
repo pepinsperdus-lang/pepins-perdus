@@ -369,7 +369,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.33';
+const APP_VERSION='2026.34';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false};
@@ -509,7 +509,7 @@ function goRec(type,v,id,annee){try{
 
 // ---- PERFORMANCE COMMERCIALE (ventes réelles du site) ----
 var BEST_URL='https://hook.eu1.make.com/12hhddtn4yg2pv5jpu7fqr6gghwpe48h';
-var BEST_KEY='pepins_bestsell_v1';
+var BEST_KEY='pepins_bestsell_v2';
 var _bestLoading=false;
 function _bestCache(){try{return JSON.parse(localStorage.getItem(BEST_KEY)||'null');}catch(e){return null;}}
 function _bestAgeTxt(ts){if(!ts)return '';var d=Date.now()-ts;var h=Math.floor(d/3600000);if(h<1)return 'à jour à l\'instant';if(h<24)return 'à jour il y a '+h+' h';var j=Math.floor(h/24);return 'à jour il y a '+j+' j';}
@@ -519,12 +519,19 @@ async function loadBest(force){
   if(_bestLoading)return; _bestLoading=true; renderCommercial();
   try{
     var r=await fetch(BEST_URL+'?t='+Date.now());var txt=await r.text();var j=JSON.parse(txt);
-    var rows=j.order_details||[];var agg={};var totalCA=0,totalU=0;
-    rows.forEach(function(d){var pid=d.product_id;if(!pid)return;var q=parseInt(d.product_quantity)||0;var rev=parseFloat(d.total_price_tax_incl)||0;
+    var rows=(j.od&&j.od.order_details)||j.order_details||[];
+    var orders=(j.ord&&j.ord.orders)||[];
+    var Y=(new Date()).getFullYear();
+    var okIds={},caYear=0;var haveOrders=orders.length>0;
+    orders.forEach(function(o){var yr=parseInt(String(o.date_add||'').slice(0,4),10);if(String(o.valid)==='1'&&yr===Y){okIds[o.id]=1;caYear+=parseFloat(o.total_paid_tax_incl)||0;}});
+    var agg={};var totalCA=0,totalU=0;
+    rows.forEach(function(d){var pid=d.product_id;if(!pid)return;
+      if(haveOrders&&!okIds[d.id_order])return;   // année en cours uniquement
+      var q=parseInt(d.product_quantity)||0;var rev=parseFloat(d.total_price_tax_incl)||0;
       if(!agg[pid])agg[pid]={name:(d.product_name||'').replace(/\s*\(.*$/,'').trim()||('#'+pid),q:0,rev:0};
       agg[pid].q+=q;agg[pid].rev+=rev;totalCA+=rev;totalU+=q;});
     var all=Object.keys(agg).map(function(k){return agg[k];}).filter(function(x){return x.q>0;}).sort(function(a,b){return b.q-a.q;});
-    var data={ts:Date.now(),totalCA:Math.round(totalCA),totalU:totalU,nProd:all.length,
+    var data={ts:Date.now(),year:Y,totalCA:Math.round(haveOrders?caYear:totalCA),totalU:totalU,nProd:all.length,
       top:all.slice(0,10),low:all.slice(-6).reverse()};
     try{localStorage.setItem(BEST_KEY,JSON.stringify(data));}catch(e){}
   }catch(e){}
@@ -541,9 +548,10 @@ function renderCommercial(){
     return;
   }
   var mx=(c.top&&c.top[0])?c.top[0].q:1;
-  var caLine=isAdmin()?('<div class="mrow" style="margin-bottom:6px"><span>Chiffre d\'affaires (site)</span><b>'+eur(c.totalCA)+'</b></div>'):'';
-  var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><b style="font-family:\'Fraunces\';color:var(--forest);font-size:15px;flex:1">Ce qui se vend le mieux</b><span style="font-size:11px;color:var(--muted)">'+_bestAgeTxt(c.ts)+'</span></div>'
-   +'<p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">'+fmt(c.nProd)+' produits vendus · '+fmt(c.totalU)+' unités'+(isAdmin()?'':' · montants réservés admin')+'</p>'
+  var _cy=c.year||(new Date()).getFullYear();
+  var caLine=isAdmin()?('<div class="mrow" style="margin-bottom:6px"><span>Chiffre d\'affaires site · '+_cy+'</span><b>'+eur(c.totalCA)+'</b></div>'):'';
+  var h='<div style="display:flex;align-items:center;gap:8px;margin-bottom:2px"><b style="font-family:\'Fraunces\';color:var(--forest);font-size:15px;flex:1">Ce qui se vend le mieux · '+_cy+'</b><span style="font-size:11px;color:var(--muted)">'+_bestAgeTxt(c.ts)+'</span></div>'
+   +'<p style="font-size:11.5px;color:var(--muted);margin:0 0 10px">'+fmt(c.nProd)+' produits vendus · '+fmt(c.totalU)+' unités · '+_cy+(isAdmin()?'':' · montants réservés admin')+'</p>'
    +caLine
    +'<div class="sec" style="margin-top:4px">Top ventes</div>'+_sellRows(c.top,mx)
    +'<div class="sec" style="margin-top:12px">Les moins vendus</div>'+_sellRows(c.low,mx)
