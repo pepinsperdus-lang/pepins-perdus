@@ -357,7 +357,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.23';
+const APP_VERSION='2026.24';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1418,7 +1418,9 @@ var _SIDX=null,_LPCACHE={};
 // mots "genre/famille" en tête de nom produit -> ignorés pour comparer la variété
 var _PPGEN={pommier:1,poirier:1,prunier:1,prune:1,abricot:1,abricotier:1,cerisier:1,cerise:1,figuier:1,vigne:1,murier:1,murrier:1,nashi:1,nefle:1,neflier:1,feijoa:1,cognassier:1,cognasse:1,coing:1,aubepine:1,argousier:1,sureau:1,sorbus:1,sorbier:1,cormier:1,chalef:1,kiwi:1,kiwai:1,actinidia:1,asiminier:1,asimine:1,avocatier:1,oranger:1,mandarine:1,mandarinier:1,pomelo:1,pamplemousse:1,kumquat:1,citron:1,citronnier:1,lime:1,limequat:1,citrange:1,citradia:1,citrus:1,pacanier:1,pecan:1,noyer:1,noisetier:1,chataignier:1,chataigne:1,chene:1,ronce:1,framboise:1,mure:1,baie:1,plaqueminier:1,kaki:1,cornouiller:1,cornus:1,goumi:1,eleagnus:1,ragouminier:1,pluot:1,pluerry:1,prunus:1,hybride:1,nectarine:1,peche:1,pecher:1,palmier:1,chironja:1,satsuma:1,tangor:1,tangelo:1,clementine:1,cudrania:1,cudrane:1,akebia:1,amelanchier:1,groseille:1,groseiller:1};
 // variétés présentes sur le site sous une orthographe très différente (variété -> extrait du nom site)
-var _PPALIAS={'taratova':'tatarova','kizilayva':'kirmizi ayva','kolovidnaja':'kolonovidnaja','daisuili':'daisui li','shangsa':'changsha','temboli':'tem bo li','turn bull':'turnbull','api noire':'api noir','simentay':'simontonyai','nadjena':'najdena','k big':'kumquat big'};
+var _PPALIAS={'taratova':'tatarova','kizilayva':'kirmizi ayva','kolovidnaja':'kolonovidnaja','daisuili':'daisui li','shangsa':'changsha','temboli':'tem bo li','turn bull':'turnbull','api noire':'api noir','simentay':'simontonyai','nadjena':'najdena','k big':'kumquat big','secreteau':'prunier goutte','quatre saisons':'citron eureka','emeald drop':'pluot emeraude','bloedpeer':'chair rouge','joey':'avocatier may'};
+// variétés à ne plus afficher (retirées du stock)
+var _PPIGNORE={'sato':1,'rose ann':1};
 function _nx(s){s=String(s||'').replace(/[œŒ]/g,'oe').replace(/[æÆ]/g,'ae');
   s=s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   s=s.replace(/\bn[°ºo]\s*/g,' ').replace(/°/g,' ');
@@ -1477,7 +1479,7 @@ function _linkPriceCalc(name,S){
 function _siteValue(){var t=0,n=0,u=0;try{if(SITE&&SITE.bySaid){for(var k in SITE.bySaid){var r=SITE.bySaid[k];if(r&&r.prix&&r.qty&&r.qty<900){t+=r.prix*r.qty;n++;u+=r.qty;}}}}catch(e){}return {total:t,n:n,u:u};}
 function _reserveValue(){var linkV=0,linkU=0,missU=0,miss={};
   try{var lots=greffeReserveLots().concat((ELEV&&ELEV.lots)||[]);
-    lots.forEach(function(l){var q=l.qty||0;if(!q)return;var p=_linkPrice(l.nom);
+    lots.forEach(function(l){var q=l.qty||0;if(!q)return;if(_PPIGNORE[_nx(l.nom)])return;var p=_linkPrice(l.nom);
       if(p>0){linkV+=p*q;linkU+=q;}
       else{missU+=q;var k=(l.nom||'?')+'|'+(l.fam||'');if(!miss[k])miss[k]={nom:l.nom||'?',fam:l.fam||'',q:0};miss[k].q+=q;}});
   }catch(e){}
