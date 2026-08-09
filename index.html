@@ -357,7 +357,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.27';
+const APP_VERSION='2026.28';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -905,15 +905,20 @@ function renameCur(){
 function openSettings(){
   $('#sheetbody').innerHTML=`<div class="grab"></div><h2 style="font-size:20px;margin:0 0 2px">Données & sauvegarde</h2>
    <p class="dsub">${greffes().length} greffes · ${bouts().length} boutures enregistrées sur cet appareil.</p>
-   <button class="ghost" onclick="exportJSON()">⬇︎ Exporter une sauvegarde (.json)</button>
+   <button class="ghost" onclick="exportFull()">⬇︎ Exporter TOUTE la sauvegarde (.json)</button>
+   <label class="ghost" style="display:block;text-align:center;cursor:pointer">⬆︎ Importer une sauvegarde<input type="file" accept=".json" style="display:none" onchange="importFull(event)"></label>
    <button class="ghost" onclick="exportCSV()">⬇︎ Exporter les greffes (.csv)</button>
-   <label class="ghost" style="display:block;text-align:center;cursor:pointer">⬆︎ Importer une sauvegarde<input type="file" accept=".json" style="display:none" onchange="importJSON(event)"></label>
+   <div class="sec" style="margin-top:16px">Historique cloud · restauration</div>
+   <p class="hint" style="margin:0 0 8px">Une photo complète de tes données est enregistrée chaque jour (30 jours gardés). Tu peux revenir à n'importe quel jour.</p>
+   <div id="snaplist"><p class="hint" style="margin:0">…</p></div>
+   <button class="ghost" style="margin-top:8px" onclick="cloudSnapshotDaily(true);toast('Photo enregistrée');setTimeout(renderSnapList,1800)">📸 Enregistrer une photo maintenant</button>
    <button class="ghost" onclick="resetData()">↺ Recharger les données de l'Excel</button>
    ${faceidSupported()?('<div class="sec" style="margin-top:16px">Sécurité · Face ID</div>'+(faceidEnrolled()?'<button class="ghost" onclick="faceidReset();openSettings()">🔓 Désactiver Face ID sur cet appareil</button>':'<button class="ghost" onclick="faceidEnroll(function(ok){toast(ok?&quot;Face ID activé&quot;:&quot;Non activé&quot;);openSettings();})">🔐 Activer Face ID sur cet appareil</button>')):''}
    <div class="sec" style="margin-top:16px">Installer sur l'écran d'accueil</div>
    <p class="hint" style="margin:0">iPhone : bouton Partager de Safari → « Sur l'écran d'accueil ». Android : menu ⋮ → « Ajouter à l'écran d'accueil ».</p>
    <p class="hint" style="margin-top:14px;text-align:center;opacity:.7">Version ${APP_VERSION} · ${DATA.greffes.length} greffes · ${DATA.boutures.length} boutures · ${SEM.cat.length} semences</p>`;
   $('#ov').classList.add('show');
+  try{renderSnapList();}catch(e){}
 }
 function dl(name,text,type){const b=new Blob([text],{type});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=name;a.click();URL.revokeObjectURL(u);}
 function exportJSON(){dl('pepins-sauvegarde-'+today()+'.json',JSON.stringify(state.records,null,1),'application/json');toast('Sauvegarde exportée');}
@@ -1736,6 +1741,60 @@ function cloudBoot(){
 // Emergency restore of the last local snapshot for a given store key (run in console).
 window.pepinsRestore=function(lsKey){try{var b=localStorage.getItem(lsKey+'_bak');if(b){localStorage.setItem(lsKey,b);localStorage.setItem(lsKey+'_ts',String(_now()));return 'Restauré '+lsKey+' ('+b.length+' o). Recharge l\'appli.';}return 'Aucune sauvegarde pour '+lsKey;}catch(e){return String(e);}};
 function cloudSeedEmpty(){CLOUD_KEYS.forEach(function(e){if(_cloudEmpty[e.k]){try{cloudPush(e.k,e.get());}catch(_){}}});}
+// ===================== SAUVEGARDE & HISTORIQUE (ajout non-destructif) =====================
+// Rassemble TOUTES les données de l'appli dans un seul objet.
+function _allData(){var s={};CLOUD_KEYS.forEach(function(e){try{var raw=localStorage.getItem(e.ls);s[e.k]=(raw==null||raw===''?null:JSON.parse(raw));}catch(_){s[e.k]=null;}});
+  return {fmt:'pepins-backup',v:2,app:APP_VERSION,ts:_now(),date:today(),stores:s};}
+// Écrit chaque store en localStorage (avec copie de secours d'abord). N'applique JAMAIS un store vide.
+function _applyStores(stores){if(!stores)return 0;var n=0;CLOUD_KEYS.forEach(function(e){var o=stores[e.k];if(o==null)return;if(_isEmptyVal(e.k,o))return;
+  try{_localBackup(e.ls);localStorage.setItem(e.ls,JSON.stringify(o));localStorage.setItem(e.ls+'_ts',String(_now()));n++;}catch(_){}});return n;}
+// Photo locale complète (roulement des 8 dernières).
+function _snapshotLocalAll(tag){try{var snap=_allData();snap.tag=tag||'';
+  var idx=[];try{idx=JSON.parse(localStorage.getItem('pepins_snaps')||'[]');if(!Array.isArray(idx))idx=[];}catch(_){idx=[];}
+  var id=String(_now())+'_'+Math.floor(idx.length);
+  localStorage.setItem('pepins_snap_'+id,JSON.stringify(snap));
+  idx.push({id:id,ts:snap.ts,date:snap.date,tag:snap.tag});
+  while(idx.length>8){var old=idx.shift();try{localStorage.removeItem('pepins_snap_'+old.id);}catch(_){}}
+  localStorage.setItem('pepins_snaps',JSON.stringify(idx));}catch(_){}}
+// Export complet (fichier que TU gardes).
+function exportFull(){try{dl('pepins-sauvegarde-complete-'+today()+'.json',JSON.stringify(_allData()),'application/json');toast('Sauvegarde complète exportée');}catch(e){toast('Erreur export');}}
+// Import : accepte le format complet {stores:...} ou l'ancien (tableau de greffes).
+function importFull(ev){var f=ev.target.files&&ev.target.files[0];if(!f)return;var rd=new FileReader();
+  rd.onload=function(){try{var d=JSON.parse(rd.result);var stores=null;
+    if(d&&d.stores)stores=d.stores; else if(Array.isArray(d))stores={records:d};
+    if(!stores){toast('Fichier non reconnu');return;}
+    if(!window.confirm('Restaurer cette sauvegarde ? Tes données actuelles seront remplacées. Une copie de secours est gardée avant.'))return;
+    _snapshotLocalAll('avant-import');var n=_applyStores(stores);
+    toast(n+' catégorie'+(n>1?'s':'')+' restaurée'+(n>1?'s':'')+' — rechargement…');
+    setTimeout(function(){try{location.reload();}catch(_){}} ,800);
+  }catch(x){toast('Fichier illisible');}};rd.readAsText(f);}
+// Historique cloud quotidien (1 photo/jour, index des 30 derniers jours).
+function cloudSnapshotDaily(force){try{if(typeof fetch!=='function')return;var d=today();
+  var last=null;try{last=localStorage.getItem('pepins_cloudsnap_day');}catch(_){}
+  if(!force&&last===d)return; var data=_allData();
+  // ne pas photographier un état totalement vide
+  var hasData=CLOUD_KEYS.some(function(e){return !_isEmptyVal(e.k,data.stores[e.k]);});
+  if(!hasData)return;
+  try{localStorage.setItem('pepins_cloudsnap_day',d);}catch(_){}
+  _cloudPushNow('snap-'+d,data);
+  _cloudGet('snapidx').then(function(t){var arr=[];try{arr=JSON.parse((''+t).trim());if(!Array.isArray(arr))arr=[];}catch(_){arr=[];}
+    if(arr.indexOf(d)<0)arr.push(d);arr.sort();while(arr.length>30)arr.shift();
+    _cloudPost('snapidx',JSON.stringify(arr));}).catch(function(){});
+}catch(_){}}
+function listCloudSnaps(){return _cloudGet('snapidx').then(function(t){try{var a=JSON.parse((''+t).trim());return Array.isArray(a)?a:[];}catch(_){return [];}}).catch(function(){return [];});}
+function restoreCloudSnap(date){if(!window.confirm('Restaurer les données du '+date+' ? Tes données actuelles seront remplacées (copie de secours gardée avant).'))return;
+  toast('Lecture de la sauvegarde du '+date+'…');
+  _cloudReadKey('snap-'+date).then(function(v){if(!v){toast('Sauvegarde introuvable');return;}var d;try{d=JSON.parse(v);}catch(_){toast('Sauvegarde illisible');return;}
+    var stores=(d&&d.stores)?d.stores:null;if(!stores){toast('Sauvegarde vide');return;}
+    _snapshotLocalAll('avant-restauration');var n=_applyStores(stores);
+    toast('Restauré ('+n+' catégories) — rechargement…');setTimeout(function(){try{location.reload();}catch(_){}} ,900);
+  }).catch(function(){toast('Erreur de lecture');});}
+// Rendu de la liste d'historique dans les Réglages (asynchrone).
+function renderSnapList(){var el=document.getElementById('snaplist');if(!el)return;el.innerHTML='<p class="hint" style="margin:0">Lecture de l\'historique…</p>';
+  listCloudSnaps().then(function(arr){if(!arr.length){el.innerHTML='<p class="hint" style="margin:0">Aucune photo cloud pour l\'instant (la première se crée aujourd\'hui).</p>';return;}
+    arr.slice().reverse().forEach(function(){});
+    el.innerHTML=arr.slice().reverse().map(function(d){return '<div class="mrow"><span>📅 '+esc(d)+'</span><button class="ghost" style="width:auto;padding:6px 12px;margin:0" onclick="restoreCloudSnap(\''+escAttr(d)+'\')">Restaurer</button></div>';}).join('');
+  });}
 function gateTry(){
   var i=document.getElementById('gate-in');var v=(i&&i.value||'').trim();
   if(v===APP_CODE){try{localStorage.setItem('pepins_ok','1');}catch(e){}
@@ -1759,7 +1818,7 @@ function showGateIfNeeded(){
   setTimeout(function(){var i=document.getElementById('gate-in');if(i){i.addEventListener('keydown',function(e){if(e.key==='Enter')gateTry();});if(!canFace)i.focus();}},60);
 }
 var _booted=false;
-function appBoot(){if(_booted)return;_booted=true;try{init();}catch(e){}try{cloudSeedEmpty();}catch(e){}}
+function appBoot(){if(_booted)return;_booted=true;try{init();}catch(e){}try{cloudSeedEmpty();}catch(e){}try{setTimeout(cloudSnapshotDaily,3000);}catch(e){}}
 // ===============================================================
 
 function init(){
@@ -1778,6 +1837,7 @@ function init(){
 }
 showGateIfNeeded();
 setTimeout(appBoot,4500);
+try{_snapshotLocalAll('avant-synchro');}catch(e){}
 cloudBoot().then(appBoot).catch(appBoot);
 </script>
 </body>
