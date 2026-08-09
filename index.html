@@ -357,7 +357,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.22';
+const APP_VERSION='2026.23';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1414,21 +1414,65 @@ var ADMIN_HASH='535ae236eb87cf3007b78f15a2bd8335667934665c633681fab896d18ea4978f
 function isAdmin(){try{return localStorage.getItem('pepins_admin')==='1';}catch(e){return false;}}
 async function _sha256hex(s){try{var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.prototype.map.call(new Uint8Array(b),function(x){return('0'+x.toString(16)).slice(-2);}).join('');}catch(e){return '';}}
 function eur(v){if(!isAdmin()||v==null||v===''||isNaN(v))return '';v=Number(v);var s=(Math.abs(v)>=100)?fmt(Math.round(v)):(Math.round(v*100)/100).toFixed(2);return s+' €';}
-var _SIDX=null;
+var _SIDX=null,_LPCACHE={};
+// mots "genre/famille" en tête de nom produit -> ignorés pour comparer la variété
+var _PPGEN={pommier:1,poirier:1,prunier:1,prune:1,abricot:1,abricotier:1,cerisier:1,cerise:1,figuier:1,vigne:1,murier:1,murrier:1,nashi:1,nefle:1,neflier:1,feijoa:1,cognassier:1,cognasse:1,coing:1,aubepine:1,argousier:1,sureau:1,sorbus:1,sorbier:1,cormier:1,chalef:1,kiwi:1,kiwai:1,actinidia:1,asiminier:1,asimine:1,avocatier:1,oranger:1,mandarine:1,mandarinier:1,pomelo:1,pamplemousse:1,kumquat:1,citron:1,citronnier:1,lime:1,limequat:1,citrange:1,citradia:1,citrus:1,pacanier:1,pecan:1,noyer:1,noisetier:1,chataignier:1,chataigne:1,chene:1,ronce:1,framboise:1,mure:1,baie:1,plaqueminier:1,kaki:1,cornouiller:1,cornus:1,goumi:1,eleagnus:1,ragouminier:1,pluot:1,pluerry:1,prunus:1,hybride:1,nectarine:1,peche:1,pecher:1,palmier:1,chironja:1,satsuma:1,tangor:1,tangelo:1,clementine:1,cudrania:1,cudrane:1,akebia:1,amelanchier:1,groseille:1,groseiller:1};
+// variétés présentes sur le site sous une orthographe très différente (variété -> extrait du nom site)
+var _PPALIAS={'taratova':'tatarova','kizilayva':'kirmizi ayva','kolovidnaja':'kolonovidnaja','daisuili':'daisui li','shangsa':'changsha','temboli':'tem bo li','turn bull':'turnbull','api noire':'api noir','simentay':'simontonyai','nadjena':'najdena','k big':'kumquat big'};
+function _nx(s){s=String(s||'').replace(/[œŒ]/g,'oe').replace(/[æÆ]/g,'ae');
+  s=s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  s=s.replace(/\bn[°ºo]\s*/g,' ').replace(/°/g,' ');
+  s=s.replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
+  return s.replace(/\brc\b/g,'reine claude');}
+function _lev(a,b){var m=a.length,n=b.length;if(!m)return n;if(!n)return m;var prev=[],cur=[],i,j;for(j=0;j<=n;j++)prev[j]=j;for(i=1;i<=m;i++){cur[0]=i;for(j=1;j<=n;j++){var c=a.charCodeAt(i-1)===b.charCodeAt(j-1)?0:1;cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+c);}for(j=0;j<=n;j++)prev[j]=cur[j];}return prev[n];}
+function _ratio(a,b){if(!a&&!b)return 1;var mx=Math.max(a.length,b.length);return mx?1-_lev(a,b)/mx:0;}
+function _ppVar(name){var v=String(name||''),outs=[],m,re=/\(([^)]*)\)/g,par=[];while((m=re.exec(v)))par.push(m[1]);
+  v.replace(/\([^)]*\)/g,' ').split(/[\/,]/).forEach(function(p){p=p.trim();if(p)outs.push(p);});
+  par.forEach(function(p){p=p.trim();if(p&&!/^p\.?\s/i.test(p)&&p.indexOf('-')<0)outs.push(p);});
+  return outs.length?outs:[v];}
 function _siteIdx(){
   if(_SIDX)return _SIDX;
   var idx={},arr=[];
-  try{(SITE.allProducts||[]).forEach(function(p){if(p&&p.nom&&p.prix>0){var n=normName(p.nom);if(idx[n]==null)idx[n]=p.prix;arr.push({n:n,p:p.prix});}});}catch(e){}
-  _SIDX={idx:idx,arr:arr};return _SIDX;
+  try{(SITE.allProducts||[]).forEach(function(p){if(p&&p.nom&&p.prix>0){
+    var bn=normName(p.nom);if(idx[bn]==null)idx[bn]=p.prix;
+    var nx=_nx(p.nom),words=nx.split(' ').filter(Boolean),lead=words.slice();
+    while(lead.length&&_PPGEN[lead[0]])lead.shift();
+    var tail=lead.join('')||nx.replace(/ /g,'');
+    arr.push({raw:p.nom,nx:nx,cat:nx.replace(/ /g,''),words:words,tail:tail,p:p.prix});
+  }});}catch(e){}
+  _SIDX={idx:idx,arr:arr};_LPCACHE={};return _SIDX;
 }
 // Lie un nom de variété à un produit du site (prix du site). 0 si non trouvé.
+// Recherche approfondie : exact -> alias -> sous-chaîne -> flou (Levenshtein ancré sur les mots).
 function _linkPrice(name){
-  var S=_siteIdx();var n=normName(name);if(!n||!S.arr.length)return 0;
-  if(S.idx[n]!=null)return S.idx[n];
-  var best=null;S.arr.forEach(function(s){if(s.n.length>=n.length&&s.n.indexOf(n)>=0){if(!best||s.n.length<best.n.length)best=s;}});
+  var S=_siteIdx();if(!S.arr.length)return 0;
+  var key=String(name||'');if(_LPCACHE[key]!=null)return _LPCACHE[key];
+  var res=_linkPriceCalc(name,S);_LPCACHE[key]=res;return res;
+}
+function _linkPriceCalc(name,S){
+  var n0=normName(name);if(n0&&S.idx[n0]!=null)return S.idx[n0];
+  var variants=_ppVar(name),i,a;
+  // alias (orthographes très différentes, confirmées présentes sur le site)
+  for(i=0;i<variants.length;i++){var vx=_nx(variants[i]);if(_PPALIAS[vx]){var tgt=_PPALIAS[vx];for(a=0;a<S.arr.length;a++){if(S.arr[a].nx.indexOf(tgt)>=0)return S.arr[a].p;}}}
+  // sous-chaîne (la variété apparaît dans le nom du produit)
+  var best=null;
+  for(i=0;i<variants.length;i++){var v2=_nx(variants[i]);if(!v2)continue;for(a=0;a<S.arr.length;a++){var e=S.arr[a];if(e.nx.indexOf(v2)>=0){if(!best||e.nx.length<best.nx.length)best=e;}}}
   if(best)return best.p;
-  var b2=null;S.arr.forEach(function(s){if(s.n.length>=5&&n.indexOf(s.n)>=0){if(!b2||s.n.length>b2.n.length)b2=s;}});
-  return b2?b2.p:0;
+  // flou ancré : chaque mot de la variété doit fortement correspondre à un mot du produit
+  var bestSc=0,bestP=0;
+  for(i=0;i<variants.length;i++){
+    var vx3=_nx(variants[i]);if(!vx3)continue;var vcat=vx3.replace(/ /g,'');
+    var vt=vx3.split(' ').filter(function(t){return t.length>=2;});
+    var sigv=vt.filter(function(t){return t.length>=3&&!_PPGEN[t];});if(!sigv.length)sigv=vt;
+    for(a=0;a<S.arr.length;a++){var s=S.arr[a],sum=0,strong=0,any4=false,t,w;
+      for(t=0;t<sigv.length;t++){var br=0;for(w=0;w<s.words.length;w++){var r=_ratio(sigv[t],s.words[w]);if(r>br)br=r;}
+        sum+=br;if(br>=0.85){strong++;if(sigv[t].length>=4)any4=true;}}
+      var avg=sigv.length?sum/sigv.length:0,phr=_ratio(vcat,s.tail),phrw=_ratio(vcat,s.cat);
+      if(!(phr>=0.80||phrw>=0.82||(strong>=Math.max(1,sigv.length-1)&&any4)))continue;
+      var sc=Math.max(avg,phr,phrw*0.9);if(sc>bestSc){bestSc=sc;bestP=s.p;}
+    }
+  }
+  return bestSc>=0.70?bestP:0;
 }
 function _siteValue(){var t=0,n=0,u=0;try{if(SITE&&SITE.bySaid){for(var k in SITE.bySaid){var r=SITE.bySaid[k];if(r&&r.prix&&r.qty&&r.qty<900){t+=r.prix*r.qty;n++;u+=r.qty;}}}}catch(e){}return {total:t,n:n,u:u};}
 function _reserveValue(){var linkV=0,linkU=0,missU=0,miss={};
