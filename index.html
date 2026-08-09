@@ -178,6 +178,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <div class="seg" id="b-type"></div>
       <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="b-q" placeholder="Rechercher une bouture…" oninput="renderBoutures()"></div>
       <label class="togglerow" style="cursor:pointer;gap:8px"><input type="checkbox" id="b-sortfam" onchange="state.sortFam=this.checked;renderBoutures()" style="width:18px;height:18px;accent-color:#3f7350"><span style="font-size:13px;color:var(--muted)">Trier A→Z par famille <span style="opacity:.7">(sinon&nbsp;: derniers modifiés)</span></span></label>
+      <div class="togglerow" style="margin:-2px 2px 10px"><span id="b-count" style="color:var(--muted);font-weight:600"></span></div>
       <div class="card" id="blist"></div>
     </section>
 
@@ -233,6 +234,8 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
     <section class="view" id="v-stats">
       <h2 style="margin:2px 2px 8px;font-size:22px;font-weight:600">Statistiques</h2>
       <div id="stats-ca"></div>
+      <div class="sec" style="margin-top:6px">Reprises par année</div>
+      <div class="seg" id="st-year"></div>
       <div class="sec" style="margin-top:6px">Greffes — taux de reprise par espèce</div>
       <div class="card" id="g-esp-stats"></div>
       <div class="sec" style="margin-top:20px">Boutures — taux de reprise par espèce</div>
@@ -267,7 +270,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <div class="field"><input class="inp" id="sem-new" placeholder="Nom de la semence (ex. Prunus mume)"></div>
       <div class="field"><input class="inp" id="sem-fam" placeholder="Catégorie / famille (optionnel)"></div>
       <button class="save" onclick="addSem()">➕ Ajouter à la liste</button>
-      <p class="hint">La semence s\'ajoute à toutes les années. Décoche/recoche selon ce que tu as déjà acheté.</p>
+      <p class="hint">La semence s'ajoute à toutes les années. Décoche/recoche selon ce que tu as déjà acheté.</p>
     </section>
   
     <section class="view" id="v-elevage">
@@ -358,10 +361,10 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.29';
+const APP_VERSION='2026.30';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
-const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false};
+const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all'};
 
 function loadDB(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return mem;}
 function saveDB(){try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){mem=state.records.slice();}cloudPush('records',state.records);}
@@ -387,6 +390,13 @@ function hashi(s){let h=0;for(const c of(s||''))h+=c.charCodeAt(0);return h%colo
 function tauxClass(t){return t==null?'pn':(t>=0.7?'pg':(t>=0.4?'pm':'pr'));}
 function navBtn(v){return document.querySelector('.nav button[data-v='+v+']');}
 function toast(m){const t=$('#toast');t.textContent='✓ '+m;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('show'),2400);}
+// Toast avec bouton « Annuler » (5 s) — pour toute suppression.
+function toastUndo(m,undoFn){var t=$('#toast');if(!t){try{undoFn&&0;}catch(_){}return;}
+  t.innerHTML='<span>'+esc(m)+'</span> <a id="undo-a" style="color:#ffd9a8;text-decoration:underline;cursor:pointer;font-weight:700;margin-left:6px">Annuler</a>';
+  t.classList.add('show');clearTimeout(window._tt);
+  var a=document.getElementById('undo-a');
+  if(a)a.onclick=function(){clearTimeout(window._tt);t.classList.remove('show');t.textContent='';try{undoFn&&undoFn();}catch(_){}};
+  window._tt=setTimeout(function(){t.classList.remove('show');t.textContent='';},5000);}
 var PIED_MAX=3; // greffes de 1 à 3 unités = pieds-mères, exclues des stats de production
 function isPiedMere(r){return r.type==='greffe'&&(r.eff||0)>0&&(r.eff||0)<=PIED_MAX;}
 function greffes(){return state.records.filter(r=>r.type==='greffe'&&!isPiedMere(r));}
@@ -398,9 +408,9 @@ function show(v){try{var _pv=(document.querySelector('.view.on')||{}).id;_pv=_pv
   if(v==='home')renderHome();if(v==='greffes')renderGreffes();if(v==='boutures')renderBoutures();if(v==='semis')renderSemis();if(v==='cmd')renderCmd();if(v==='stats')renderStats();if(v==='plan')renderPlan();if(v==='cat')renderCat();if(v==='semences')renderSemences();if(v==='elevage')renderElevage();if(v==='stock')renderStock();if(v==='todo')renderTodo();if(v==='arrosage')renderArros();if(v==='pieds')renderPieds();if(v==='hormones')renderHormones();
   // nav highlight for quicklink views
   if(['stats','plan','cat','semences','semis','elevage','stock','todo','arrosage','pieds','hormones'].includes(v)){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));}
-  try{var _fab=document.querySelector('.nav .fab');if(_fab)_fab.style.display=(v==='greffes'||v==='boutures'||v==='semis'||v==='add')?'':'none';}catch(e){}}
+  try{var _fab=document.querySelector('.nav .fab');if(_fab)_fab.style.display='';}catch(e){}}
 
-function fabAdd(){var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');var m=(cur==='boutures')?'bouture':(cur==='semis')?'semis':'greffe';state.mode=m;go('add',navBtn('add'));try{var b=document.querySelector('.seg [data-mode=\"'+m+'\"]');if(b)mode(m,b);}catch(e){}}
+function fabAdd(){var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');var m=(cur==='boutures')?'bouture':(cur==='semis')?'semis':'greffe';state.mode=m;go('add',navBtn('add'));try{var b=document.querySelector('.seg [data-mode=\"'+m+'\"]');if(b)mode(m,b);}catch(e){}try{setTimeout(function(){var v=document.getElementById('f-var');if(v)v.focus();},140);}catch(e){}}
 function mode(m,btn){state.mode=m;document.querySelectorAll('.seg [data-mode]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   $('#greffe-fields').style.display=m==='greffe'?'block':'none';$('#bouture-fields').style.display=m==='bouture'?'block':'none';$('#semis-fields').style.display=m==='semis'?'block':'none';
   $('#savebtn').textContent=m==='greffe'?'Enregistrer la greffe':(m==='bouture'?'Enregistrer la bouture':'Enregistrer le semis');}
@@ -427,7 +437,7 @@ function renderHome(){
   $('#kpis').innerHTML=
    '<div class="kpi hero"><div class="n">'+fmt(eff+bn+sn)+'</div><div class="l">plants en production · greffes + boutures + semis</div></div>'+
    '<div class="kpi"><div class="n">'+fmt(nv)+'</div><div class="l">Variétés en production</div></div>'+
-   '<div class="kpi"><span class="chip up">▲</span><div class="n">'+taux+' %</div><div class="l">Reprise greffe moyenne</div></div>'+(function(){try{var src=(typeof piedsGet==='function')?piedsGet():PIEDSDATA;var tp=0,z=0;for(var k in src){z++;tp+=src[k].length;}return '<div class="kpi" onclick="show(\'pieds\')" style="grid-column:1/3;cursor:pointer;display:flex;align-items:center;justify-content:space-between"><div><div class="n">'+fmt(tp)+'</div><div class="l">pieds-mères au plan · '+z+' zones</div></div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c3cabb" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></div>';}catch(e){return '';}})();
+   '<div class="kpi"><div class="n">'+taux+' %</div><div class="l">Reprise greffe moyenne</div></div>'+(function(){try{var src=(typeof piedsGet==='function')?piedsGet():PIEDSDATA;var tp=0,z=0;for(var k in src){z++;tp+=src[k].length;}return '<div class="kpi" onclick="show(\'pieds\')" style="grid-column:1/3;cursor:pointer;display:flex;align-items:center;justify-content:space-between"><div><div class="n">'+fmt(tp)+'</div><div class="l">pieds-mères au plan · '+z+' zones</div></div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#c3cabb" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></div>';}catch(e){return '';}})();
   var chev='<svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg>';
   var flux=[
    {n:'Greffes',pct:taux,w:(eff?Math.round(rep/eff*100):0),sub:fmt(rep)+' repris / '+fmt(eff)+' greffés',v:'greffes'},
@@ -646,6 +656,7 @@ function renderBoutures(){
   let rs=bouts();
   if(state.btyp!=='tout')rs=rs.filter(r=>r.typ===state.btyp);
   if(q)rs=rs.filter(r=>(r.v+' '+(r.famille||'')).toLowerCase().includes(q));
+  try{var _bvset={},_bpieces=0;rs.forEach(function(r){_bvset[r.v]=1;_bpieces+=bTot(r).n;});var _nbv=Object.keys(_bvset).length;var _bc=document.getElementById('b-count');if(_bc)_bc.textContent=_nbv+' variété'+(_nbv>1?'s':'')+' · '+fmt(_bpieces)+' boutures';}catch(e){}
   var cbb=document.getElementById('b-sortfam');if(cbb)cbb.checked=!!state.sortFam;
   let html='';
   if(state.sortFam){
@@ -709,20 +720,25 @@ function renderCmd(){
 // ---- STATS ----
 function renderStats(){
   renderStatsCA();
-  const dz={};bouts().forEach(r=>{for(const k in r.doses){const c=r.doses[k];dz[k]=dz[k]||{n:0,r:0};if(c.n)dz[k].n+=c.n;if(c.r)dz[k].r+=c.r;}});
+  var _sy=state.stYear||'all';var _ys=yearsBand();
+  var _seg=document.getElementById('st-year');
+  if(_seg)_seg.innerHTML='<button class="'+(_sy==='all'?'on':'')+'" onclick="state.stYear=\'all\';renderStats()">Toutes</button>'+_ys.map(function(y){return '<button class="'+(_sy===y?'on':'')+'" onclick="state.stYear='+y+';renderStats()">'+y+'</button>';}).join('');
+  var G=(_sy==='all')?greffes():greffes().filter(function(r){return r.annee===_sy;});
+  var B=(_sy==='all')?bouts():bouts().filter(function(r){return r.annee===_sy;});
+  const dz={};B.forEach(r=>{for(const k in r.doses){const c=r.doses[k];dz[k]=dz[k]||{n:0,r:0};if(c.n)dz[k].n+=c.n;if(c.r)dz[k].r+=c.r;}});
   let best=null,bv=-1;for(const k in dz){if(dz[k].n){const t=dz[k].r/dz[k].n;if(t>bv){bv=t;best=k;}}}
   const order=['1 %','0,8 %','0,5 %','0,25 %','0,1 %','Sans hormone','SH'];
   const keys=Object.keys(dz).sort((a,b)=>(order.indexOf(a)+99*(order.indexOf(a)<0))-(order.indexOf(b)+99*(order.indexOf(b)<0)));
   $('#hormstats').innerHTML=keys.length?keys.map(k=>{const d=dz[k];const t=d.n?Math.round(d.r/d.n*100):0;return `<div class="row"><div class="bar"><div class="t"><span>${k} ${k===best?'<span class=badge>optimal</span>':''}</span><em>${d.r}/${d.n} · ${t}%</em></div><div class="track"><div class="fill w" style="width:${t}%"></div></div></div></div>`;}).join(''):emptyBox('Aucune bouture');
   var espBar=function(label,a,b,t){var p=Math.round(t*100);var col=(p>=70?'#3f7350':(p>=40?'#c99a3c':'#b0512c'));return '<div class="row"><div class="bar"><div class="t"><span>'+esc(label)+'</span><em>'+fmt(a)+'/'+fmt(b)+' · '+p+'%</em></div><div class="track"><div class="fill" style="width:'+p+'%;background:'+col+'"></div></div></div></div>';};
-  var gesp={};greffes().forEach(function(r){var f=r.famille||'Autres';gesp[f]=gesp[f]||{eff:0,rep:0};gesp[f].eff+=r.eff||0;if(r.rep!=null)gesp[f].rep+=r.rep;});
+  var gesp={};G.forEach(function(r){var f=r.famille||'Autres';gesp[f]=gesp[f]||{eff:0,rep:0};gesp[f].eff+=r.eff||0;if(r.rep!=null)gesp[f].rep+=r.rep;});
   var ge=Object.keys(gesp).filter(function(f){return gesp[f].eff>0;}).map(function(f){return {f:f,eff:gesp[f].eff,rep:gesp[f].rep,t:gesp[f].rep/gesp[f].eff};}).sort(function(a,b){return b.t-a.t;});
   if($('#g-esp-stats'))$('#g-esp-stats').innerHTML=ge.length?ge.map(function(x){return espBar(x.f,x.rep,x.eff,x.t);}).join(''):emptyBox('Aucune reprise renseignée');
-  var besp={};bouts().forEach(function(r){var f=especeName(r.v);besp[f]=besp[f]||{n:0,r:0};for(var k in r.doses){var c=r.doses[k];if(c.n)besp[f].n+=c.n;if(c.r)besp[f].r+=c.r;}});
+  var besp={};B.forEach(function(r){var f=especeName(r.v);besp[f]=besp[f]||{n:0,r:0};for(var k in r.doses){var c=r.doses[k];if(c.n)besp[f].n+=c.n;if(c.r)besp[f].r+=c.r;}});
   var be=Object.keys(besp).filter(function(f){return besp[f].n>0;}).map(function(f){return {f:f,n:besp[f].n,r:besp[f].r,t:besp[f].r/besp[f].n};}).sort(function(a,b){return b.t-a.t;});
   if($('#b-esp-stats'))$('#b-esp-stats').innerHTML=be.length?be.map(function(x){return espBar(x.f,x.r,x.n,x.t);}).join(''):emptyBox('Aucune bouture renseignée');
   const ops={};DATA.operateurs.forEach(o=>ops[o]={eff:0,rep:0});
-  greffes().forEach(r=>{if(r.op&&ops[r.op]){ops[r.op].eff+=r.eff||0;ops[r.op].rep+=r.rep||0;}});
+  G.forEach(r=>{if(r.op&&ops[r.op]){ops[r.op].eff+=r.eff||0;ops[r.op].rep+=r.rep||0;}});
   const has=Object.values(ops).some(o=>o.eff);const mx=Math.max(1,...Object.values(ops).map(o=>o.eff));
   $('#opstats').innerHTML=has?Object.entries(ops).map(([o,d])=>{const t=d.eff?Math.round(d.rep/d.eff*100):null;return `<div class="row"><div class="av" style="background:${colors[hashi(o)]}">${initials(o)}</div><div class="bar"><div class="t"><span>${o}</span><em>${d.eff?d.rep+'/'+d.eff+' · '+t+'%':'—'}</em></div><div class="track"><div class="fill" style="width:${Math.round(d.eff/mx*100)}%"></div></div></div></div>`;}).join(''):emptyBox('Aucun opérateur renseigné pour l\'instant');
 }
@@ -869,7 +885,7 @@ function sheetBouture(){const r=cur;const keys=Object.keys(r.doses).length?Objec
 }
 function saveG(){cur.prev=iv('e-prev');cur.eff=iv('e-eff');cur.rep=iv('e-rep');cur.regr=iv('e-regr');cur.rep2=iv('e-rep2');cur.invendus=iv('e-inv');cur.rupture=document.getElementById('e-rup').value||null;cur.mt=Date.now();saveDB();closeSheet();toast('Mis à jour');refreshCurrent();}
 function saveB(keys){const d={};keys.forEach((k,i)=>{const n=iv('bn'+i),rr=iv('br'+i);if(n!=null||rr!=null)d[k]={n,r:rr};});cur.doses=d;cur.mt=Date.now();saveDB();closeSheet();toast('Mis à jour');refreshCurrent();}
-function delRec(){state.records=state.records.filter(r=>r.id!==cur.id);saveDB();closeSheet();toast('Supprimé');refreshCurrent();}
+function delRec(){var removed=cur;state.records=state.records.filter(r=>r.id!==cur.id);saveDB();closeSheet();refreshCurrent();toastUndo('Supprimé',function(){if(removed){state.records.push(removed);saveDB();refreshCurrent();}});}
 function refreshCurrent(){const on=document.querySelector('.view.on').id.replace('v-','');show(on);}
 
 // ---- SEMIS (semé → levé) ----
@@ -992,7 +1008,7 @@ function renderSemences(){
 }
 function toggleSem(id){const y=state.semYear;const b=SEM.bought[y]=SEM.bought[y]||{};b[id]=!b[id];saveSem();renderSemences();if(document.querySelector('#v-home').classList.contains('on'))renderHome();}
 function addSem(){const nom=($('#sem-new').value||'').trim();if(!nom){toast('Nom de la semence ?');return;}const fam=($('#sem-fam').value||'').trim()||'Autres';SEM.cat.push({id:'s'+Date.now().toString(36),nom:nom,fam:fam});$('#sem-new').value='';$('#sem-fam').value='';saveSem();renderSemences();toast('Semence ajoutée · '+nom);}
-function delSem(id){SEM.cat=SEM.cat.filter(s=>s.id!==id);Object.keys(SEM.bought).forEach(y=>{if(SEM.bought[y])delete SEM.bought[y][id];});saveSem();renderSemences();}
+function delSem(id){var removed=SEM.cat.filter(s=>s.id===id)[0];var boughtBk={};Object.keys(SEM.bought).forEach(y=>{if(SEM.bought[y]&&SEM.bought[y][id]!=null)boughtBk[y]=SEM.bought[y][id];});SEM.cat=SEM.cat.filter(s=>s.id!==id);Object.keys(SEM.bought).forEach(y=>{if(SEM.bought[y])delete SEM.bought[y][id];});saveSem();renderSemences();toastUndo('Semence supprimée',function(){if(removed){SEM.cat.push(removed);Object.keys(boughtBk).forEach(y=>{SEM.bought[y]=SEM.bought[y]||{};SEM.bought[y][id]=boughtBk[y];});saveSem();renderSemences();}});}
 
 // ---- STOCK GLOBAL (réserve, par origine) + DISPONIBLE (vente → site) ----
 var ELEV={lots:[],dispo:[]};
@@ -1072,7 +1088,7 @@ function renderElevage(){
   $('#elevlist').innerHTML=out;
 }
 function promoteElev(id){var l=ELEV.lots.filter(function(x){return x.id===id;})[0];if(!l)return;var i=STADES.indexOf(l.stade);if(i<STADES.length-1){l.stade=STADES[i+1];saveElev();renderElevage();if(l.stade==='Vendable')toast(l.nom+' est prêt — mets-le en vente');}}
-function delElev(id){ELEV.lots=ELEV.lots.filter(function(x){return x.id!==id;});saveElev();renderElevage();}
+function delElev(id){var removed=ELEV.lots.filter(function(x){return x.id===id;})[0];ELEV.lots=ELEV.lots.filter(function(x){return x.id!==id;});saveElev();renderElevage();toastUndo('Lot supprimé',function(){if(removed){ELEV.lots.push(removed);saveElev();renderElevage();}});}
 function mettreEnVente(id){sellSheet(id);}
 function sellSheet(id){
   var l=ELEV.lots.filter(function(x){return x.id===id;})[0];if(!l)return;
@@ -1195,7 +1211,7 @@ function renderSite(){
   if(st){var dt=new Date(SITE.ts);st.textContent='À jour · '+('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);}
   if(fil)fil.innerHTML=[['all','Tout'],['low','Stock faible']].map(function(f){return '<button class="'+(siteFilter===f[0]?'on':'')+'" onclick="siteFilter=\''+f[0]+'\';renderSite()">'+f[1]+'</button>';}).join('');
   var q=((document.getElementById('site-q')||{}).value||'').toLowerCase();
-  var view=(siteFilter==='low')?rows.filter(function(r){return r.qty<=15;}):rows.slice();
+  var view=(siteFilter==='low')?rows.filter(function(r){return r.qty<=5;}):rows.slice();
   if(q)view=view.filter(function(r){return (r.nom||'').toLowerCase().indexOf(q)>=0;});
   view.sort(function(a,b){return (a.nom||'').localeCompare(b.nom||'','fr');});
   var btnStyle='display:none;align-items:center;justify-content:center;flex:none;margin-left:6px;background:#3f7350;color:#fff;border:none;width:34px;height:34px;border-radius:9px;font-size:16px;font-weight:700';
@@ -1249,8 +1265,8 @@ function renderTodo(){
   }).join(''):emptyBox('Ajoute ta première tâche ci-dessous.');
 }
 function addTodo(){var i=document.getElementById('todo-new');var v=(i.value||'').trim();if(!v)return;TODO.items.unshift({id:uid(),txt:v,done:false});i.value='';saveTodo();renderTodo();}
-function toggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=true;saveTodo();renderTodo();toast('✓ fait');}
-function delTodo(id){TODO.items=TODO.items.filter(function(x){return x.id!==id;});saveTodo();renderTodo();}
+function toggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=true;saveTodo();renderTodo();toastUndo('✓ fait',function(){t.done=false;saveTodo();renderTodo();});}
+function delTodo(id){var removed=TODO.items.filter(function(x){return x.id===id;})[0];TODO.items=TODO.items.filter(function(x){return x.id!==id;});saveTodo();renderTodo();toastUndo('Tâche supprimée',function(){if(removed){TODO.items.unshift(removed);saveTodo();renderTodo();}});}
 
 // ---- COMMANDE PORTE-GREFFES (éditable, coché « commandé » par année, sauvegardé + synchronisé) ----
 var CMD={rows:null,done:{}};
