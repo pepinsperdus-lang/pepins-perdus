@@ -223,10 +223,11 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
 
     <section class="view" id="v-cmd">
       <h2 style="margin:2px 2px 8px;font-size:22px;font-weight:600">Commande porte-greffes</h2>
-      <p class="dsub">Ce qu'il faut commander à ton fournisseur, calculé depuis tes greffes prévues.</p>
+      <p class="dsub">Modifie les quantités, ajoute un porte-greffe, et coche ✓ ce que tu as commandé (ça reste affiché).</p>
       <div class="seg" id="c-year"></div>
-      <div class="cmdtot"><div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#cfe4d2">Total à commander</div><div class="n" id="c-total">—</div></div><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#8fb996" stroke-width="1.6"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 4.6A1 1 0 0 0 5.6 19H17"/></svg></div>
+      <div class="cmdtot"><div><div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#cfe4d2">Reste à commander</div><div class="n" id="c-total">—</div><div id="c-sub" style="font-size:11.5px;color:#cfe4d2;margin-top:3px"></div></div><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#8fb996" stroke-width="1.6"><path d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.3 4.6A1 1 0 0 0 5.6 19H17"/></svg></div>
       <div class="card" id="cmdlist"></div>
+      <button class="ghost" id="cmd-addbtn" onclick="cmdAddStart()" style="margin-top:10px">＋ Ajouter un porte-greffe à commander</button>
     </section>
 
     <section class="view" id="v-stats">
@@ -357,10 +358,10 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.28';
+const APP_VERSION='2026.29';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
-const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
+const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false};
 
 function loadDB(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return mem;}
 function saveDB(){try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){mem=state.records.slice();}cloudPush('records',state.records);}
@@ -665,13 +666,44 @@ function renderBoutures(){
 
 // ---- COMMANDE ----
 function renderCmd(){
-  const cm=DATA.commande;
-  $('#c-year').innerHTML=yearsBand().map(y=>`<button class="${y===state.cYear?'on':''}" onclick="state.cYear=${y};renderCmd()">${y}</button>`).join('');
-  const idx=cm.years.indexOf(state.cYear);
-  const rows=cm.rows.map(r=>({pg:r.pg,q:r.qty[idx]||0})).sort((a,b)=>b.q-a.q);
-  const tot=rows.reduce((s,r)=>s+r.q,0);
-  $('#c-total').textContent=fmt(tot)+' plants';
-  $('#cmdlist').innerHTML=rows.map(r=>`<div class="cmdrow"><div class="av" style="background:${r.q?colors[hashi(r.pg)]:'#c9cdc2'}">${initials(r.pg)}</div><div class="m"><b>${r.pg}</b><span>${r.q?'à commander':'rien cette année'}</span></div><div class="qty ${r.q?'':'z'}">${r.q?fmt(r.q):'—'}</div></div>`).join('');
+  var years=cmdYears();
+  $('#c-year').innerHTML=years.map(function(y){return '<button class="'+(y===state.cYear?'on':'')+'" onclick="state.cYear='+y+';state.cmdEdit=null;state.cmdAdd=false;renderCmd()">'+y+'</button>';}).join('');
+  var idx=years.indexOf(state.cYear);if(idx<0){idx=0;state.cYear=years[0];}
+  var done=cmdDoneMap(state.cYear);
+  var rows=cmdRows().map(function(r){return {pg:r.pg,q:(r.qty[idx]||0),done:!!done[r.pg]};});
+  var toCmd=0,nDone=0;rows.forEach(function(r){if(r.done)nDone++;else toCmd+=r.q;});
+  $('#c-total').textContent=fmt(toCmd)+' plants';
+  var sub=document.getElementById('c-sub');if(sub)sub.textContent=nDone+' commandé'+(nDone>1?'s':'')+' · '+rows.length+' porte-greffes';
+  rows.sort(function(a,b){var da=a.done?1:0,db=b.done?1:0;if(da!==db)return da-db;return b.q-a.q;});
+  var html=rows.map(function(r){
+    if(state.cmdEdit===r.pg){
+      return '<div class="cmdrow" style="flex-wrap:wrap;gap:8px;background:#f4f8f1">'
+        +'<div class="m" style="min-width:120px"><b>'+esc(r.pg)+'</b><span>Quantité à commander en '+state.cYear+'</span></div>'
+        +'<input id="cmd-qin" class="miniinp" type="number" inputmode="numeric" value="'+r.q+'" style="width:96px">'
+        +'<div style="display:flex;gap:8px;width:100%;margin-top:2px">'
+          +'<button onclick="cmdEditSave(\''+escAttr(r.pg)+'\')" style="flex:1;background:#3f7350;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;font-family:inherit">Enregistrer</button>'
+          +'<button onclick="cmdEditCancel()" style="background:#eef1ec;border:none;border-radius:10px;padding:10px 14px;font-family:inherit">Annuler</button>'
+          +'<button onclick="cmdDelRow(\''+escAttr(r.pg)+'\')" style="background:#fbeeea;color:#b0512c;border:none;border-radius:10px;padding:10px 12px;font-weight:700;font-family:inherit">Retirer</button>'
+        +'</div></div>';
+    }
+    var statusTxt=r.done?'commandé ✓':(r.q?'à commander':'rien cette année');
+    return '<div class="cmdrow" style="'+(r.done?'background:#eef5ea;':'')+'">'
+      +'<button onclick="cmdToggleDone(\''+escAttr(r.pg)+'\')" title="Marquer commandé" style="width:34px;height:34px;border-radius:9px;flex:none;border:2px solid '+(r.done?'#3f7350':'#cbd3c6')+';background:'+(r.done?'#3f7350':'#fff')+';color:#fff;font-size:17px;line-height:1">'+(r.done?'✓':'')+'</button>'
+      +'<div class="m" onclick="cmdEditStart(\''+escAttr(r.pg)+'\')" style="cursor:pointer"><b style="'+(r.done?'text-decoration:line-through;color:#8a9a8d':'')+'">'+esc(r.pg)+'</b><span>'+statusTxt+' &middot; ✎ modifier</span></div>'
+      +'<div class="qty '+(r.q?'':'z')+'" onclick="cmdEditStart(\''+escAttr(r.pg)+'\')" style="cursor:pointer">'+(r.q?fmt(r.q):'—')+'</div>'
+    +'</div>';
+  }).join('');
+  if(state.cmdAdd){
+    html+='<div class="cmdrow" style="flex-wrap:wrap;gap:8px;background:#eef5ea">'
+      +'<input id="cmd-newname" class="inp" placeholder="Nom du porte-greffe" style="flex:1;min-width:150px">'
+      +'<input id="cmd-newqty" class="miniinp" type="number" inputmode="numeric" placeholder="Qté" style="width:82px">'
+      +'<div style="display:flex;gap:8px;width:100%;margin-top:2px">'
+        +'<button onclick="cmdAddDo()" style="flex:1;background:#3f7350;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:700;font-family:inherit">Ajouter</button>'
+        +'<button onclick="cmdAddCancel()" style="background:#eef1ec;border:none;border-radius:10px;padding:10px 14px;font-family:inherit">Annuler</button>'
+      +'</div></div>';
+  }
+  $('#cmdlist').innerHTML=html||'<div class="empty">Aucun porte-greffe. Ajoute-en un ci-dessous.</div>';
+  var ab=document.getElementById('cmd-addbtn');if(ab)ab.style.display=state.cmdAdd?'none':'';
 }
 
 // ---- STATS ----
@@ -1220,6 +1252,31 @@ function addTodo(){var i=document.getElementById('todo-new');var v=(i.value||'')
 function toggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=true;saveTodo();renderTodo();toast('✓ fait');}
 function delTodo(id){TODO.items=TODO.items.filter(function(x){return x.id!==id;});saveTodo();renderTodo();}
 
+// ---- COMMANDE PORTE-GREFFES (éditable, coché « commandé » par année, sauvegardé + synchronisé) ----
+var CMD={rows:null,done:{}};
+function loadCmd(){try{var s=JSON.parse(localStorage.getItem('pepins_cmd_v1')||'null');if(s&&(s.rows||s.done)){CMD={rows:s.rows||null,done:s.done||{}};return;}}catch(e){}CMD={rows:null,done:{}};}
+function saveCmd(){try{localStorage.setItem('pepins_cmd_v1',JSON.stringify(CMD));}catch(e){}try{cloudPush('cmd',CMD);}catch(e){}}
+function cmdYears(){return DATA.commande.years;}
+function cmdRows(){return (CMD.rows&&CMD.rows.length)?CMD.rows:DATA.commande.rows;}
+function cmdEnsure(){if(!CMD.rows){CMD.rows=JSON.parse(JSON.stringify(DATA.commande.rows));}return CMD.rows;}
+function cmdDoneMap(y){return (CMD.done&&CMD.done[y])?CMD.done[y]:{};}
+function cmdToggleDone(pg){var y=state.cYear;if(!CMD.done)CMD.done={};if(!CMD.done[y])CMD.done[y]={};CMD.done[y][pg]=!CMD.done[y][pg];saveCmd();renderCmd();}
+function cmdEditStart(pg){state.cmdEdit=pg;state.cmdAdd=false;renderCmd();setTimeout(function(){var e=document.getElementById('cmd-qin');if(e){e.focus();try{e.select();}catch(_){}}},50);}
+function cmdEditCancel(){state.cmdEdit=null;renderCmd();}
+function cmdEditSave(pg){var rows=cmdEnsure();var idx=cmdYears().indexOf(state.cYear);var el=document.getElementById('cmd-qin');var v=el?parseInt(el.value,10):NaN;if(isNaN(v)||v<0)v=0;
+  var r=rows.filter(function(x){return x.pg===pg;})[0];if(r){while(r.qty.length<cmdYears().length)r.qty.push(0);r.qty[idx]=v;}
+  state.cmdEdit=null;saveCmd();renderCmd();toast(pg+' → '+fmt(v)+' en '+state.cYear);}
+function cmdDelRow(pg){if(!window.confirm('Retirer '+pg+' de la liste ?'))return;var rows=cmdEnsure();CMD.rows=rows.filter(function(x){return x.pg!==pg;});state.cmdEdit=null;saveCmd();renderCmd();toast(pg+' retiré');}
+function cmdAddStart(){state.cmdAdd=true;state.cmdEdit=null;renderCmd();setTimeout(function(){var e=document.getElementById('cmd-newname');if(e)e.focus();},50);}
+function cmdAddCancel(){state.cmdAdd=false;renderCmd();}
+function cmdAddDo(){var n=((document.getElementById('cmd-newname')||{}).value||'').trim();if(!n){toast('Nom du porte-greffe ?');return;}
+  var q=parseInt((document.getElementById('cmd-newqty')||{}).value,10);if(isNaN(q)||q<0)q=0;
+  var rows=cmdEnsure();var idx=cmdYears().indexOf(state.cYear);
+  var ex=rows.filter(function(x){return x.pg.toLowerCase()===n.toLowerCase();})[0];
+  if(ex){while(ex.qty.length<cmdYears().length)ex.qty.push(0);ex.qty[idx]=q;}
+  else{var qty=[];for(var i=0;i<cmdYears().length;i++)qty.push(i===idx?q:0);rows.push({pg:n,qty:qty});}
+  state.cmdAdd=false;saveCmd();renderCmd();toast('Ajouté · '+n);}
+
 // ---- ARROSAGES ----
 var AR_ZONES=['Serre classique 1','Serre classique 2','GAG serre classique','Serre evo 1','Serre evo 2','GAG serre evo','Planche de culture','Verger 1','Verger 2 (marcottière)','Serre casado','Verger 3','Aspersion plateforme'];
 var ARROS={zones:{}};
@@ -1642,6 +1699,7 @@ var CLOUD_KEYS=[
  {k:'arros',ls:'pepins_arros_v1',get:function(){return ARROS;}},
  {k:'sem',ls:SEMKEY,get:function(){return SEM;}},
  {k:'pieds',ls:'pepins_pieds_v1',get:function(){return PIEDS;}},
+ {k:'cmd',ls:'pepins_cmd_v1',get:function(){return CMD;}},
  {k:'uservars',ls:UVKEY,get:function(){try{return JSON.parse(localStorage.getItem(UVKEY)||'[]');}catch(e){return [];}}}
 ];
 var _cloudEmpty={},_cloudTimers={};
@@ -1705,6 +1763,7 @@ function _isEmptyVal(key,o){
     if(key==='todo')return !(o.items&&o.items.length);
     if(key==='elevage')return !((o.lots&&o.lots.length)||(o.dispo&&o.dispo.length));
     if(key==='pieds')return !((o.notes&&Object.keys(o.notes).length)||o.plan);
+    if(key==='cmd')return !((o.rows&&o.rows.length)||(o.done&&Object.keys(o.done).length));
     if(key==='sem')return !(o.bought&&Object.keys(o.bought).length);
     if(key==='arros'){if(!o||!o.zones)return true;return !Object.keys(o.zones).some(function(z){return ((o.zones[z]&&o.zones[z].prog)||'')!=='';});}
     return false;
@@ -1822,7 +1881,7 @@ function appBoot(){if(_booted)return;_booted=true;try{init();}catch(e){}try{clou
 // ===============================================================
 
 function init(){
-  loadUserVars();try{applyRenames();}catch(e){}loadSemences();loadElevage();loadTodo();loadArros();loadPieds();
+  loadUserVars();try{applyRenames();}catch(e){}loadSemences();loadElevage();loadTodo();loadArros();loadPieds();loadCmd();
   let db=loadDB();
   if(db&&db.length!==undefined){state.records=db;}
   else{
