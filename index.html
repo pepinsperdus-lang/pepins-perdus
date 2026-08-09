@@ -167,7 +167,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
     <section class="view" id="v-greffes">
       <h2 style="margin:2px 2px 8px;font-size:22px;font-weight:600">Greffes</h2>
       <div class="seg" id="g-year"></div>
-      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="g-q" placeholder="Rechercher une variété, un porte-greffe…" oninput="renderGreffes()"></div>
+      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="g-q" placeholder="Rechercher une variété, un porte-greffe…" oninput="renderGreffes()"></div>
       <div class="togglerow"><span id="g-toglbl">Réussies seulement</span><div class="switch" id="g-tog" onclick="this.classList.toggle('on');renderGreffes()"></div><span id="g-count" style="margin-left:auto;color:var(--muted);font-weight:600"></span></div>
       <label class="togglerow" style="cursor:pointer;gap:8px"><input type="checkbox" id="g-sortfam" onchange="state.sortFam=this.checked;renderGreffes()" style="width:18px;height:18px;accent-color:#3f7350"><span style="font-size:13px;color:var(--muted)">Trier A→Z par famille <span style="opacity:.7">(sinon&nbsp;: derniers modifiés)</span></span></label>
       <div class="card" id="glist"></div>
@@ -176,7 +176,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
     <section class="view" id="v-boutures">
       <h2 style="margin:2px 2px 8px;font-size:22px;font-weight:600">Boutures</h2>
       <div class="seg" id="b-type"></div>
-      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="b-q" placeholder="Rechercher une bouture…" oninput="renderBoutures()"></div>
+      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="b-q" placeholder="Rechercher une bouture…" oninput="renderBoutures()"></div>
       <label class="togglerow" style="cursor:pointer;gap:8px"><input type="checkbox" id="b-sortfam" onchange="state.sortFam=this.checked;renderBoutures()" style="width:18px;height:18px;accent-color:#3f7350"><span style="font-size:13px;color:var(--muted)">Trier A→Z par famille <span style="opacity:.7">(sinon&nbsp;: derniers modifiés)</span></span></label>
       <div class="togglerow" style="margin:-2px 2px 10px"><span id="b-count" style="color:var(--muted);font-weight:600"></span></div>
       <div class="card" id="blist"></div>
@@ -185,7 +185,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
     <section class="view" id="v-semis">
       <h2 style="margin:2px 2px 8px;font-size:22px;font-weight:600">Semis</h2>
       <div class="seg" id="sm-year"></div>
-      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="sm-q" placeholder="Rechercher un semis…" oninput="renderSemis()"></div>
+      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="sm-q" placeholder="Rechercher un semis…" oninput="renderSemis()"></div>
       <div class="togglerow"><span style="color:var(--muted);font-size:13px">Taux = levées / semées</span><span id="sm-count" style="margin-left:auto;color:var(--muted);font-weight:600"></span></div>
       <label class="togglerow" style="cursor:pointer;gap:8px"><input type="checkbox" id="sm-sortfam" onchange="state.sortFam=this.checked;renderSemis()" style="width:18px;height:18px;accent-color:#3f7350"><span style="font-size:13px;color:var(--muted)">Trier A→Z par famille <span style="opacity:.7">(sinon&nbsp;: derniers modifiés)</span></span></label>
       <div class="card" id="smlist"></div>
@@ -256,7 +256,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
 
     <section class="view" id="v-cat">
       <h2 style="margin:2px 2px 10px;font-size:22px;font-weight:600">Catalogue variétés</h2>
-      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="q" placeholder="Rechercher parmi 787 variétés…" oninput="renderCat()"></div>
+      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="q" placeholder="Rechercher parmi 787 variétés…" oninput="renderCat()"></div>
       <div class="card" id="vlist"></div>
     </section>
 
@@ -299,7 +299,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <p class="dsub">Le vrai stock en vente sur pepinsperdus.fr. Modifie avec &minus;/+ ou tape la quantité, puis ✓ pour l'envoyer au site.</p>
       <div class="kgrid" id="site-kpi"></div>
       <div class="togglerow" style="justify-content:space-between;margin-top:12px"><span id="site-status" style="color:var(--muted);font-weight:600;font-size:12.5px"></span><button class="ghost" style="width:auto;margin:0;padding:8px 15px" onclick="loadSite(true)">&#8635; Rafra&icirc;chir</button></div>
-      <div class="search" style="margin-top:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="site-q" placeholder="Rechercher un produit…" oninput="renderSite()"></div>
+      <div class="search" style="margin-top:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9aa79d" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="site-q" placeholder="Rechercher un produit…" oninput="renderSite()"></div>
       <div class="seg" id="site-filter" style="margin-top:10px"></div>
       <div class="card" id="site-list"></div>
       <div class="sec" id="pending-sec" style="margin-top:18px;display:none">En attente de mise en vente (local)</div>
@@ -326,14 +326,14 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Plan pieds-mères</h2>
       <p class="dsub">Ton plan complet : chaque emplacement avec sa plante principale et ses plantes associées, zone par zone.</p>
       <div id="pieds-kpi"></div>
-      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c8a7f" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="pieds-q" placeholder="Chercher une plante ou une zone…" oninput="renderPieds()"></div>
+      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c8a7f" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="pieds-q" placeholder="Chercher une plante ou une zone…" oninput="renderPieds()"></div>
       <div class="card" id="piedslist"></div>
     </section>
   
     <section class="view" id="v-hormones">
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Bouturage &middot; meilleurs réglages</h2>
       <p class="dsub">Pour chaque variété : l'hormone et le substrat les plus efficaces, calculés en direct sur tes résultats de boutures. Mis à jour automatiquement à chaque saisie.</p>
-      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c8a7f" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input id="horm-q" placeholder="Chercher une variété (ex. Umbellata)…" oninput="renderHormones()"></div>
+      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c8a7f" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="horm-q" placeholder="Chercher une variété (ex. Umbellata)…" oninput="renderHormones()"></div>
       <div class="togglerow"><span id="horm-count" style="color:var(--muted);font-weight:600"></span></div>
       <div class="card" id="hormlist"></div>
     </section>
@@ -361,10 +361,10 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.31';
+const APP_VERSION='2026.32';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
-const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all'};
+const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false};
 
 function loadDB(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return mem;}
 function saveDB(){try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){mem=state.records.slice();}cloudPush('records',state.records);}
@@ -596,8 +596,9 @@ function renderGreffes(){
     const vs=Object.keys(byV).sort((a,b)=>{var d=_cardMt(byV[b])-_cardMt(byV[a]);return d||a.localeCompare(b,'fr');});
     html=vs.map(vn=>greffeVarCard(byV[vn])).join('');
   }
-  $('#g-count').textContent=rs.length+' greffe'+(rs.length>1?'s':'');
-  $('#glist').innerHTML=rs.length?html:emptyBox('Aucune greffe');
+  var _gv={},_geff=0;rs.forEach(function(r){_gv[r.v]=1;_geff+=r.eff||0;});var _ngv=Object.keys(_gv).length;
+  $('#g-count').textContent=_ngv+' variete'.replace('variete','variété')+(_ngv>1?'s':'')+' · '+fmt(_geff)+' greffés';
+  $('#glist').innerHTML=rs.length?html:emptyBox('Aucune greffe pour l\'instant — ajoute-en avec le bouton +.');
 }
 
 // ---- BOUTURES ----
@@ -1261,12 +1262,23 @@ function loadTodo(){try{var s=JSON.parse(localStorage.getItem('pepins_todo_v1')|
 function saveTodo(){try{localStorage.setItem('pepins_todo_v1',JSON.stringify(TODO));}catch(e){}cloudPush('todo',TODO);}
 function renderTodo(){
   var open=TODO.items.filter(function(t){return !t.done;});
+  var done=TODO.items.filter(function(t){return t.done;});
   var el=document.getElementById('todo-count');if(el)el.textContent=open.length?open.length+' tâche'+(open.length>1?'s':'')+' à faire':'Rien à faire 🎉';
   var list=document.getElementById('todolist');if(!list)return;
-  list.innerHTML=open.length?open.map(function(t){
-    return '<div class="ent"><button onclick="toggleTodo(\''+t.id+'\')" title="Fait" style="width:27px;height:27px;border-radius:8px;flex:none;border:2px solid #cbd3c6;background:#fff"></button><div class="m"><b style="font-weight:600;white-space:normal">'+esc(t.txt)+'</b></div><button onclick="delTodo(\''+t.id+'\')" style="background:none;border:none;color:#c3cabb;font-size:16px;padding:4px 8px">&times;</button></div>';
-  }).join(''):emptyBox('Ajoute ta première tâche ci-dessous.');
+  var h='';
+  if(open.length){h+=open.map(function(t){
+    return '<div class="ent"><button onclick="toggleTodo(\''+t.id+'\')" title="Fait" style="width:30px;height:30px;border-radius:8px;flex:none;border:2px solid #cbd3c6;background:#fff"></button><div class="m"><b style="font-weight:600;white-space:normal">'+esc(t.txt)+'</b></div><button onclick="delTodo(\''+t.id+'\')" title="Supprimer" style="background:none;border:none;color:#c3cabb;font-size:18px;padding:8px 10px">&times;</button></div>';
+  }).join('');}
+  else if(!done.length){h+=emptyBox('Ajoute ta première tâche ci-dessous.');}
+  if(done.length){var sd=!!state.todoShowDone;
+    h+='<div class="famh" style="cursor:pointer;margin-top:10px" onclick="state.todoShowDone=!state.todoShowDone;renderTodo()"><span style="color:#4b7f52">'+(sd?'▾':'▸')+' Terminées</span><em>'+done.length+'</em></div>';
+    if(sd){h+=done.map(function(t){
+      return '<div class="ent"><button onclick="untoggleTodo(\''+t.id+'\')" title="Remettre à faire" style="width:30px;height:30px;border-radius:8px;flex:none;border:2px solid #3f7350;background:#3f7350;color:#fff;font-size:16px">✓</button><div class="m"><b style="font-weight:600;white-space:normal;text-decoration:line-through;color:#8a9a8d">'+esc(t.txt)+'</b></div><button onclick="delTodo(\''+t.id+'\')" title="Supprimer" style="background:none;border:none;color:#c3cabb;font-size:18px;padding:8px 10px">&times;</button></div>';
+    }).join('');}
+  }
+  list.innerHTML=h;
 }
+function untoggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=false;saveTodo();renderTodo();toast('Remise à faire');}
 function addTodo(){var i=document.getElementById('todo-new');var v=(i.value||'').trim();if(!v)return;TODO.items.unshift({id:uid(),txt:v,done:false});i.value='';saveTodo();renderTodo();}
 function toggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=true;saveTodo();renderTodo();toastUndo('✓ fait',function(){t.done=false;saveTodo();renderTodo();});}
 function delTodo(id){var removed=TODO.items.filter(function(x){return x.id===id;})[0];TODO.items=TODO.items.filter(function(x){return x.id!==id;});saveTodo();renderTodo();toastUndo('Tâche supprimée',function(){if(removed){TODO.items.unshift(removed);saveTodo();renderTodo();}});}
