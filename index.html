@@ -357,7 +357,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.26';
+const APP_VERSION='2026.27';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026};
@@ -1362,18 +1362,15 @@ function renderPieds(){
     '<div class="kpi" style="flex:1"><div class="n">'+fmt(zones.length)+'</div><div class="l">zones</div></div></div>';
   if(q){
     var res=[];
-    zones.forEach(function(z){var arr=DATASRC[z];var pmap={};arr.forEach(function(r){if(r[2]==='P'&&r[0])pmap[r[0]]=r[1];});
-      arr.forEach(function(r){if(r[1].toLowerCase().indexOf(q)>=0||z.toLowerCase().indexOf(q)>=0||(r[0]&&r[0].toLowerCase().indexOf(q)>=0)||(r[3]&&r[3].toLowerCase().indexOf(q)>=0)){
-        var empl=(r[2]==='P')?r[0]:r[3];
-        res.push({z:z,pos:r[0],nom:r[1],t:r[2],par:r[3],empl:empl,parName:(r[2]==='A'?(pmap[r[3]]||''):'')});
-      }});});
+    zones.forEach(function(z){var arr=DATASRC[z];var L=piedsLetter(z);
+      arr.forEach(function(r,i){var code=(L?L:'#')+(i+1);
+        if(r[1].toLowerCase().indexOf(q)>=0||z.toLowerCase().indexOf(q)>=0||code.toLowerCase().indexOf(q)>=0){
+          res.push({z:z,nom:r[1],code:code});
+        }});});
     if(!res.length){list.innerHTML=emptyBox('Rien pour « '+esc(q)+' ».');return;}
     var hq='<div class="famh">Résultats<em>'+res.length+'</em></div>';
     hq+=res.slice(0,400).map(function(x){
-      var badge=x.t==='P'?'<span class="pill pg">Principal</span>':'<span class="pill pm">Associé</span>';
-      var emplTxt=x.empl?('📍 '+esc(x.empl)):'📍 —';
-      var extra=(x.t==='A'&&x.parName)?(' · associé à '+esc(niceName(x.parName))):'';
-      return '<div class="ent"><div class="av" style="background:'+(x.t==='P'?'#4b7f52':'#c99a3c')+';font-size:13px;flex:none">'+(x.t==='P'?'●':'+')+'</div><div class="m"><b>'+esc(niceName(x.nom))+'</b><span><b style="color:#2f6b41">'+emplTxt+'</b> &middot; '+esc(x.z)+' &middot; '+badge+extra+'</span></div></div>';
+      return '<div class="ent"><div class="av" style="background:#4b7f52;font-size:12px;font-weight:700;flex:none">'+esc(x.code)+'</div><div class="m"><b>'+esc(niceName(x.nom)||'(vide)')+'</b><span><b style="color:#2f6b41">📍 '+esc(x.code)+'</b> &middot; '+esc(x.z)+'</span></div></div>';
     }).join('');
     if(res.length>400)hq+='<p class="hint" style="text-align:center;padding:8px 0">'+(res.length-400)+' autres résultats… précise ta recherche.</p>';
     list.innerHTML=hq;return;
