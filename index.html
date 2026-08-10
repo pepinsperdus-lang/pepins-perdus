@@ -369,7 +369,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.35';
+const APP_VERSION='2026.36';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false};
@@ -418,7 +418,8 @@ function show(v){try{var _pv=(document.querySelector('.view.on')||{}).id;_pv=_pv
   if(['stats','plan','cat','semences','semis','elevage','stock','todo','arrosage','pieds','hormones'].includes(v)){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));}
   try{var _fab=document.querySelector('.nav .fab');if(_fab)_fab.style.display='';}catch(e){}}
 
-function fabAdd(){var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');var m=(cur==='boutures')?'bouture':(cur==='semis')?'semis':'greffe';state.mode=m;go('add',navBtn('add'));try{var b=document.querySelector('.seg [data-mode=\"'+m+'\"]');if(b)mode(m,b);}catch(e){}try{setTimeout(function(){var v=document.getElementById('f-var');if(v)v.focus();},140);}catch(e){}}
+function seasonByDate(){try{var mo=(new Date()).getMonth()+1;return (mo>=5&&mo<=10)?"été":"hiver";}catch(e){return "hiver";}}
+function fabAdd(){var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');var m=(cur==='boutures')?'bouture':(cur==='semis')?'semis':'greffe';state.mode=m;if(m==="bouture"){state.btyp=seasonByDate();try{var _bt=document.getElementById("f-btyp");if(_bt)_bt.innerHTML=[["hiver","Hiver"],["été","Été"]].map(function(kv){return '<button class="opt'+(kv[0]===state.btyp?" sel":"")+'" onclick="pick(&#39;btyp&#39;,&#39;'+kv[0]+'&#39;,this)">'+kv[1]+'</button>';}).join("");}catch(e){}}go('add',navBtn('add'));try{var b=document.querySelector('.seg [data-mode=\"'+m+'\"]');if(b)mode(m,b);}catch(e){}try{setTimeout(function(){var v=document.getElementById('f-var');if(v)v.focus();},140);}catch(e){}}
 function mode(m,btn){state.mode=m;document.querySelectorAll('.seg [data-mode]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   $('#greffe-fields').style.display=m==='greffe'?'block':'none';$('#bouture-fields').style.display=m==='bouture'?'block':'none';$('#semis-fields').style.display=m==='semis'?'block':'none';
   $('#savebtn').textContent=m==='greffe'?'Enregistrer la greffe':(m==='bouture'?'Enregistrer la bouture':'Enregistrer le semis');}
@@ -651,10 +652,23 @@ function boutSeasonLine(r){
     `<div class="m"><b style="font-weight:600">${ete?'Été':'Hiver'} ${r.annee||''}${slbl}</b><span>${bits}</span></div>`+
     `<div class="pill ${tauxClass(t)}">${t==null?'à suivre':pct(t)+'%'}</div></div>`;
 }
-var _GENUS_COMMON={punica:'Grenadier',ficus:'Figuier',morus:'Mûrier',sambucus:'Sureau',lonicera:'Camérisier',hippophae:'Argousier',eleagnus:'Eleagnus',ribes:'Groseillier',akebia:'Akébia',holboelia:'Holboelia',acca:'Feijoa',ugni:'Ugni',olea:'Olivier',crataegus:'Aubépine',sorbus:'Sorbier',cydonia:'Cognassier',chaenomeles:'Cognassier du Japon',rosa:'Rosier',vitis:'Vigne',lycium:'Goji',rubus:'Ronce',aristotelia:'Maqui',arctostaphylos:'Busserole',buddleja:'Buddleia',passiflora:'Passiflore',coriandrum:'Coriandre',actinidia:'Kiwaï',chimonanthus:'Chimonanthe',gynostemma:'Gynostemma',ehretia:'Ehretia',aronia:'Aronia',prunus:'Prunus',schisandra:'Schisandra',kadsura:'Kadsura',debregeasia:'Debregeasia',fuchsia:'Fuchsia',camellia:'Camellia',toona:'Toona',hovenia:'Hovenia'};
-function _isBotanicalFam(f){return /(ac[eé]e?s?|aceae)$/i.test(String(f||'').trim());}
-function _commonFamOf(r){var g=String(r.v||'').trim().split(/\s+/)[0].toLowerCase();return _GENUS_COMMON[g]||(g?g.charAt(0).toUpperCase()+g.slice(1):(r.famille||''));}
-function fixBoutureFamilies(){try{(state.records||[]).forEach(function(r){if(r.type==='bouture'&&_isBotanicalFam(r.famille)){var nf=_commonFamOf(r);if(nf&&nf!==r.famille)r.famille=nf;}});}catch(e){}}
+var _GEN={actinidia:'Kiwaïs',sambucus:'Sureaux',coriandrum:'Coriandre',ehretia:'Ehretia',chimonanthus:'Arbre aux faisans',lonicera:'Camérisiers',gynostemma:'Gynostemma',eleagnus:'Chalefs (Eleagnus)',hippophae:'Argousiers',aristotelia:'Maquis',arctostaphylos:'Busseroles',ribes:'Groseilliers',akebia:'Akébias',holboelia:'Holboelia',punica:'Grenadiers',ficus:'Figuiers',morus:'Mûriers',acca:'Feijoas',ugni:'Ugni',toona:'Toona',olea:'Oliviers',fuchsia:'Fuchsias',hovenia:'Hovenia',rubus:'Ronces',aronia:'Aronias',sorbus:'Sorbiers',crataegus:'Aubépines',chaenomeles:'Cognassiers du Japon',cydonia:'Cognassiers',rosa:'Rosiers',schisandra:'Schisandra',kadsura:'Kadsura',buddleja:'Buddleias',lycium:'Gojis',camellia:'Camellias',debregeasia:'Debregeasia',passiflora:'Passiflore',vitis:'Vignes'};
+var _FAMALIAS={'grenadier':'Grenadiers','eleagnus':'Chalefs (Eleagnus)','elaeagnus':'Chalefs (Eleagnus)','elaeagnacees':'Chalefs (Eleagnus)','chalef':'Chalefs (Eleagnus)','chalefs':'Chalefs (Eleagnus)','lythracees':'Grenadiers'};
+function _deacc(x){return String(x||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+function _boutFam(r){
+  var v=(r.v||'').trim();
+  var g=_deacc(v.split(/\s+/)[0]);
+  if(g==='elaeagnus')g='eleagnus';
+  if(g==='prunus')return /tomentosa/i.test(v)?'Ragouminiers':'Cerisiers';
+  if(_GEN[g])return _GEN[g];
+  var f=(r.famille||'').trim();
+  var fl=_deacc(f).replace(/\s*\(.*$/,'').trim();
+  return _FAMALIAS[fl]||f;
+}
+function fixBoutureFamilies(){try{(state.records||[]).forEach(function(r){if(r.type!=='bouture')return;
+  if(r.v&&/elaeagn/i.test(r.v))r.v=r.v.replace(/Elaeagn/g,'Eleagn').replace(/elaeagn/g,'eleagn');
+  var nf=_boutFam(r);if(nf&&nf!==r.famille)r.famille=nf;
+});}catch(e){}}
 function renameVarietyDo(oldV){var el=document.getElementById('bv-rename');var nv=el?(el.value||'').trim():'';if(!nv){toast('Le nom ne peut pas être vide');return;}
   if(nv!==oldV){state.records.forEach(function(r){if(r.v===oldV)r.v=nv;});try{DATA.varietes.forEach(function(x){if(x.nom===oldV)x.nom=nv;});}catch(e){}try{renameStore(oldV,nv,null);}catch(e){}saveDB();}
   closeSheet();toast('Renommé · '+nv);try{renderBoutures();}catch(e){}}
