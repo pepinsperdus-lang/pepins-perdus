@@ -369,7 +369,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.37';
+const APP_VERSION='2026.38';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false};
@@ -1520,14 +1520,17 @@ function renderPieds(){
     if(!zhit.length){list.innerHTML=emptyBox('Rien pour « '+esc(q)+' ».');return;}
     var nHitTot=zhit.reduce(function(s2,zh){return s2+zh.nHits;},0);
     var hq='<div class="famh">Résultats<em>'+nHitTot+' · '+zhit.length+' ligne'+(zhit.length>1?'s':'')+'</em></div>';
+    var _first=true;
     zhit.slice(0,25).forEach(function(zh){var L=zh.L;
       hq+='<div class="famh" style="background:linear-gradient(90deg,#e7efe3,#eef3ea)">'+esc(zh.z)+'<em>'+zh.arr.length+' plante'+(zh.arr.length>1?'s':'')+'</em></div>';
-      hq+=zh.arr.map(function(r,i){var code=(L?L:'#')+(i+1);var hit=zh.ms[i];
-        return '<div class="ent" style="'+(hit?'background:#fff7e0':'')+'"><div class="av" style="background:'+(hit?'#c99a3c':'#9fbfa6')+';font-size:12px;font-weight:700;flex:none">'+esc(code)+'</div><div class="m"><b'+(hit?' style="color:#8a6d1f"':'')+'>'+esc(niceName(r[1])||'(vide)')+'</b><span>📍 '+esc(code)+' · '+esc(zh.z)+'</span></div>'+(hit?'<span style="color:#c99a3c;font-size:16px;flex:none">◀</span>':'')+'</div>';
+      hq+=zh.arr.map(function(r,i){var code=(L?L:'#')+(i+1);var hit=zh.ms[i];var idA='';if(hit&&_first){idA=' id="pieds-firsthit"';_first=false;}
+        return '<div class="ent"'+idA+' style="'+(hit?'background:#fff7e0':'')+'"><div class="av" style="background:'+(hit?'#c99a3c':'#9fbfa6')+';font-size:12px;font-weight:700;flex:none">'+esc(code)+'</div><div class="m"><b'+(hit?' style="color:#8a6d1f"':'')+'>'+esc(niceName(r[1])||'(vide)')+'</b><span>📍 '+esc(code)+' · '+esc(zh.z)+'</span></div>'+(hit?'<span style="color:#c99a3c;font-size:16px;flex:none">◀</span>':'')+'</div>';
       }).join('');
     });
     if(zhit.length>25)hq+='<p class="hint" style="text-align:center;padding:8px 0">'+(zhit.length-25)+' autres lignes… précise ta recherche.</p>';
-    list.innerHTML=hq;return;
+    list.innerHTML=hq;
+    try{setTimeout(function(){var _he=document.getElementById('pieds-firsthit');if(_he&&_he.scrollIntoView)_he.scrollIntoView({behavior:'smooth',block:'center'});},60);}catch(e){}
+    return;
   }
   var fm={};zones.forEach(function(z){var f=piedsFam(z);(fm[f]=fm[f]||[]).push(z);});Object.keys(fm).forEach(function(f){fm[f].sort(piedsNat);});
   var fams=PIEDS_FAM_ORDER.filter(function(f){return fm[f];});
