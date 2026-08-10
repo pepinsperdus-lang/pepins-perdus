@@ -369,7 +369,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.38';
+const APP_VERSION='2026.39';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false};
@@ -879,7 +879,7 @@ function save(){
     state.gYear=yr;go('greffes',navBtn('greffes'));
   }else if(state.mode==='bouture'){
     const doses={};document.querySelectorAll('#dosegrid input').forEach(inp=>{const n=parseInt(inp.value)||0;if(n)doses[inp.dataset.k]={n,r:null};});
-    var _exb=state.records.find(function(x){return x.type==='bouture'&&x.v===v&&x.typ===state.btyp&&x.annee===yr;});
+    var _exb=state.records.find(function(x){return x.type==='bouture'&&x.v===v&&x.typ===state.btyp&&x.annee===yr&&(x.substrat||'')===(state.sub||'');});
     if(_exb){for(var _dk in doses){if(_exb.doses[_dk]){_exb.doses[_dk].n=(_exb.doses[_dk].n||0)+(doses[_dk].n||0);}else{_exb.doses[_dk]=doses[_dk];}}if(!_exb.substrat&&state.sub)_exb.substrat=state.sub;_exb.mt=Date.now();}
     else{state.records.unshift({id:uid(),type:'bouture',typ:state.btyp,annee:yr,v,famille:fam,substrat:state.sub,doses,date:today(),mt:Date.now()});}
     document.querySelectorAll('#dosegrid input').forEach(i=>i.value='');
