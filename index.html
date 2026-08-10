@@ -369,7 +369,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.34';
+const APP_VERSION='2026.35';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false};
@@ -651,13 +651,21 @@ function boutSeasonLine(r){
     `<div class="m"><b style="font-weight:600">${ete?'Été':'Hiver'} ${r.annee||''}${slbl}</b><span>${bits}</span></div>`+
     `<div class="pill ${tauxClass(t)}">${t==null?'à suivre':pct(t)+'%'}</div></div>`;
 }
+var _GENUS_COMMON={punica:'Grenadier',ficus:'Figuier',morus:'Mûrier',sambucus:'Sureau',lonicera:'Camérisier',hippophae:'Argousier',eleagnus:'Eleagnus',ribes:'Groseillier',akebia:'Akébia',holboelia:'Holboelia',acca:'Feijoa',ugni:'Ugni',olea:'Olivier',crataegus:'Aubépine',sorbus:'Sorbier',cydonia:'Cognassier',chaenomeles:'Cognassier du Japon',rosa:'Rosier',vitis:'Vigne',lycium:'Goji',rubus:'Ronce',aristotelia:'Maqui',arctostaphylos:'Busserole',buddleja:'Buddleia',passiflora:'Passiflore',coriandrum:'Coriandre',actinidia:'Kiwaï',chimonanthus:'Chimonanthe',gynostemma:'Gynostemma',ehretia:'Ehretia',aronia:'Aronia',prunus:'Prunus',schisandra:'Schisandra',kadsura:'Kadsura',debregeasia:'Debregeasia',fuchsia:'Fuchsia',camellia:'Camellia',toona:'Toona',hovenia:'Hovenia'};
+function _isBotanicalFam(f){return /(ac[eé]e?s?|aceae)$/i.test(String(f||'').trim());}
+function _commonFamOf(r){var g=String(r.v||'').trim().split(/\s+/)[0].toLowerCase();return _GENUS_COMMON[g]||(g?g.charAt(0).toUpperCase()+g.slice(1):(r.famille||''));}
+function fixBoutureFamilies(){try{(state.records||[]).forEach(function(r){if(r.type==='bouture'&&_isBotanicalFam(r.famille)){var nf=_commonFamOf(r);if(nf&&nf!==r.famille)r.famille=nf;}});}catch(e){}}
+function renameVarietyDo(oldV){var el=document.getElementById('bv-rename');var nv=el?(el.value||'').trim():'';if(!nv){toast('Le nom ne peut pas être vide');return;}
+  if(nv!==oldV){state.records.forEach(function(r){if(r.v===oldV)r.v=nv;});try{DATA.varietes.forEach(function(x){if(x.nom===oldV)x.nom=nv;});}catch(e){}try{renameStore(oldV,nv,null);}catch(e){}saveDB();}
+  closeSheet();toast('Renommé · '+nv);try{renderBoutures();}catch(e){}}
 function boutVarCard(recs){
   if(recs.length===1)return boutRow(recs[0]);
   const v=recs[0].v;let n=0,rr=0;recs.forEach(r=>{const bt=bTot(r);n+=bt.n;if(bt.rr)rr+=bt.rr;});
   const anyR=recs.some(r=>{const bt=bTot(r);return bt.rr>0||bt.taux!=null;});
   const t=(n&&anyR)?rr/n:null;
-  const subs=[...new Set(recs.map(r=>subLabel(r.substrat)).filter(Boolean))];
-  const detail=subs.length?subs.length+' substrat'+(subs.length>1?'s':''):recs.length+' lots';
+  const subAgg={};recs.forEach(r=>{const sName=subLabel(r.substrat)||'Sans substrat';const bt=bTot(r);subAgg[sName]=(subAgg[sName]||0)+bt.n;});
+  const subKeys=Object.keys(subAgg);
+  const detail=subKeys.length?subKeys.map(k=>k+' '+fmt(subAgg[k])).join(' · '):recs.length+' lots';
   const chev='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c3cabf" stroke-width="2.4" style="flex:none"><path d="M9 6l6 6-6 6"/></svg>';
   return `<div class="ent" onclick="openBoutVar('${escJs(v)}')" style="cursor:pointer"><div class="av" style="background:#4b7f52">🪴</div>`+
     `<div class="m"><b>${v}</b><span>${fmt(n)} pièces · ${detail}</span></div>`+
@@ -678,6 +686,7 @@ function openBoutVar(v){
     +'<p class="dsub">'+fmt(n)+' pièces'+(tg!=null?' · '+pct(tg)+'% global':'')+'</p>'
     +'<div class="sec">Par substrat / saison</div>'+rows
     +'<p class="hint" style="margin-top:10px">Tape un lot pour saisir/éditer ses reprises par dosage.</p>'
+    +'<details style="margin:8px 0 2px"><summary style="cursor:pointer;color:#3f7350;font-size:13px;font-weight:600">✎ Modifier le nom de la bouture</summary><div class="mrow" style="margin-top:6px"><span>Nom</span><input class="miniinp" style="width:180px" id="bv-rename" value="'+esc(v).replace(/"/g,'&quot;')+'"></div><button class="ghost" style="margin-top:6px" onclick="renameVarietyDo(\''+escJs(v)+'\')">Appliquer partout</button></details>'
     +'<button class="ghost" style="margin-top:10px" onclick="closeSheet()">Fermer</button>';
   $('#ov').classList.add('show');
 }
@@ -1965,6 +1974,7 @@ function init(){
     for(const k of OLDKEYS){try{const old=JSON.parse(localStorage.getItem(k)||'[]');if(Array.isArray(old)){userAdded=old.filter(r=>r&&r.id&&String(r.id)[0]==='u');if(userAdded.length)break;}}catch(e){}}
     state.records=seed().concat(userAdded);saveDB();
   }
+  try{fixBoutureFamilies();}catch(e){}
   fillForm();renderHome();
   try{var _f=document.querySelector('.nav .fab');if(_f)_f.style.display='none';}catch(e){}
   try{var _sb=document.getElementById('sheetbody');if(_sb&&!_sb._saveHook){_sb._saveHook=1;_sb.addEventListener('input',function(){var b=document.getElementById('sheet-save');if(b){b.disabled=false;b.style.opacity='1';}});}}catch(e){}
