@@ -369,7 +369,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.36';
+const APP_VERSION='2026.37';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false};
@@ -1511,18 +1511,22 @@ function renderPieds(){
     '<div class="kpi" style="flex:1"><div class="n">'+fmt(totPos)+'</div><div class="l">emplacements</div></div>'+
     '<div class="kpi" style="flex:1"><div class="n">'+fmt(zones.length)+'</div><div class="l">zones</div></div></div>';
   if(q){
-    var res=[];
-    zones.forEach(function(z){var arr=DATASRC[z];var L=piedsLetter(z);
+    // Recherche : on affiche la LIGNE entière qui contient le résultat (plantes avant/après pour se repérer)
+    var zhit=[];
+    zones.forEach(function(z){var arr=DATASRC[z];var L=piedsLetter(z);var zmatch=z.toLowerCase().indexOf(q)>=0;var idx=[];
       arr.forEach(function(r,i){var code=(L?L:'#')+(i+1);
-        if(r[1].toLowerCase().indexOf(q)>=0||z.toLowerCase().indexOf(q)>=0||code.toLowerCase().indexOf(q)>=0){
-          res.push({z:z,nom:r[1],code:code});
-        }});});
-    if(!res.length){list.innerHTML=emptyBox('Rien pour « '+esc(q)+' ».');return;}
-    var hq='<div class="famh">Résultats<em>'+res.length+'</em></div>';
-    hq+=res.slice(0,400).map(function(x){
-      return '<div class="ent"><div class="av" style="background:#4b7f52;font-size:12px;font-weight:700;flex:none">'+esc(x.code)+'</div><div class="m"><b>'+esc(niceName(x.nom)||'(vide)')+'</b><span><b style="color:#2f6b41">📍 '+esc(x.code)+'</b> &middot; '+esc(x.z)+'</span></div></div>';
-    }).join('');
-    if(res.length>400)hq+='<p class="hint" style="text-align:center;padding:8px 0">'+(res.length-400)+' autres résultats… précise ta recherche.</p>';
+        if(zmatch||r[1].toLowerCase().indexOf(q)>=0||code.toLowerCase().indexOf(q)>=0)idx.push(i);});
+      if(idx.length){var ms={};idx.forEach(function(i){ms[i]=1;});zhit.push({z:z,arr:arr,L:L,ms:ms,nHits:idx.length});}});
+    if(!zhit.length){list.innerHTML=emptyBox('Rien pour « '+esc(q)+' ».');return;}
+    var nHitTot=zhit.reduce(function(s2,zh){return s2+zh.nHits;},0);
+    var hq='<div class="famh">Résultats<em>'+nHitTot+' · '+zhit.length+' ligne'+(zhit.length>1?'s':'')+'</em></div>';
+    zhit.slice(0,25).forEach(function(zh){var L=zh.L;
+      hq+='<div class="famh" style="background:linear-gradient(90deg,#e7efe3,#eef3ea)">'+esc(zh.z)+'<em>'+zh.arr.length+' plante'+(zh.arr.length>1?'s':'')+'</em></div>';
+      hq+=zh.arr.map(function(r,i){var code=(L?L:'#')+(i+1);var hit=zh.ms[i];
+        return '<div class="ent" style="'+(hit?'background:#fff7e0':'')+'"><div class="av" style="background:'+(hit?'#c99a3c':'#9fbfa6')+';font-size:12px;font-weight:700;flex:none">'+esc(code)+'</div><div class="m"><b'+(hit?' style="color:#8a6d1f"':'')+'>'+esc(niceName(r[1])||'(vide)')+'</b><span>📍 '+esc(code)+' · '+esc(zh.z)+'</span></div>'+(hit?'<span style="color:#c99a3c;font-size:16px;flex:none">◀</span>':'')+'</div>';
+      }).join('');
+    });
+    if(zhit.length>25)hq+='<p class="hint" style="text-align:center;padding:8px 0">'+(zhit.length-25)+' autres lignes… précise ta recherche.</p>';
     list.innerHTML=hq;return;
   }
   var fm={};zones.forEach(function(z){var f=piedsFam(z);(fm[f]=fm[f]||[]).push(z);});Object.keys(fm).forEach(function(f){fm[f].sort(piedsNat);});
