@@ -201,7 +201,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <div class="field" style="position:relative"><label>Espèce / famille</label><input class="inp" id="f-fam" autocomplete="off" oninput="acFam()" onfocus="acFam()" onblur="acBlur('f-fam-ac')" placeholder="Tape une espèce…"><div class="ac" id="f-fam-ac"></div></div>
       <div class="field"><label>Année</label><div class="seg" id="f-year"></div></div>
       <div id="greffe-fields">
-        <div class="field"><label>Porte-greffe</label><select class="inp" id="f-pg"></select></div>
+        <div class="field" style="position:relative"><label>Porte-greffe</label><input class="inp" id="f-pg" autocomplete="off" oninput="acPg()" onfocus="acPg()" onblur="acBlur('f-pg-ac')" placeholder="Tape un porte-greffe…"><div class="ac" id="f-pg-ac"></div></div>
         <div class="field"><label>Rang</label><div class="chips" id="f-rang"></div></div>
         <div class="steps">
           <div class="step"><label>Prévues</label><div class="stepper"><button onclick="bump('prev',-5)">–</button><input id="f-prev" value="30" inputmode="numeric"><button onclick="bump('prev',5)">+</button></div></div>
@@ -369,10 +369,10 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.42';
+const APP_VERSION='2026.43';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
-const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent'};
+const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
 
 function loadDB(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s);}catch(e){}return mem;}
 function saveDB(){try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){mem=state.records.slice();}cloudPush('records',state.records);}
@@ -859,12 +859,21 @@ function acFam(){var q=($('#f-fam').value||'').trim().toLowerCase();var box=docu
   box.innerHTML=list.map(function(f){return '<div onmousedown="acPickFam(\''+acEscQ(f)+'\')">'+esc(f)+'</div>';}).join('');
   box.classList.add('show');}
 function acPickFam(f){$('#f-fam').value=f;var b=document.getElementById('f-fam-ac');if(b)b.classList.remove('show');}
+function _pgAll(){var out=[];try{for(var g in DATA.pg){(DATA.pg[g]||[]).forEach(function(x){if(x&&out.indexOf(x)<0)out.push(x);});}}catch(e){}return out;}
+function acPg(){var q=($('#f-pg').value||'').trim().toLowerCase();var box=document.getElementById('f-pg-ac');if(!box)return;
+  var all=_pgAll();var list;
+  if(!q){list=all.slice();var last=state.lastPg;if(last){list=list.filter(function(x){return x!==last;});list.unshift(last);}list=list.slice(0,12);}
+  else{list=all.filter(function(x){return x.toLowerCase().indexOf(q)>=0;});list.sort(function(a,b){return a.toLowerCase().indexOf(q)-b.toLowerCase().indexOf(q)||a.localeCompare(b,'fr');});list=list.slice(0,12);}
+  if(!list.length){box.classList.remove('show');box.innerHTML='';return;}
+  box.innerHTML=list.map(function(x){var tag=(x===state.lastPg&&!q)?' <small>· dernier utilisé</small>':'';return '<div onmousedown="acPickPg(\''+acEscQ(x)+'\')">'+esc(x)+tag+'</div>';}).join('');
+  box.classList.add('show');}
+function acPickPg(name){$('#f-pg').value=name;var b=document.getElementById('f-pg-ac');if(b)b.classList.remove('show');}
 function acBlur(id){setTimeout(function(){var b=document.getElementById(id);if(b)b.classList.remove('show');},180);}
 function fillForm(){
   const fams=[...new Set(DATA.varietes.map(v=>v.fam))].filter(f=>f!=='Autres').sort((a,b)=>a.localeCompare(b));
   $('#f-fam').value='';$('#f-var').value='';['f-var-ac','f-fam-ac'].forEach(function(id){var b=document.getElementById(id);if(b){b.classList.remove('show');b.innerHTML='';}});
   renderAddYear();
-  let h='<option value="Autre">Autre…</option>';for(const grp in DATA.pg){h+=`<optgroup label="${grp.replace('PG ','')}">`+DATA.pg[grp].map(x=>`<option>${x}</option>`).join('')+'</optgroup>';}$('#f-pg').innerHTML=h;
+  var _pgi=document.getElementById('f-pg');if(_pgi&&_pgi.tagName==='INPUT'&&!_pgi.value)_pgi.value=state.lastPg||'';
   $('#f-rang').innerHTML=['A','B','C','D','E','F'].map(r=>`<button class="opt${r===state.rang?' sel':''}" onclick="pickTog('rang','${r}',this)">${r}</button>`).join('');
   $('#f-op').innerHTML=DATA.operateurs.map(o=>`<button class="opt${o===state.op?' sel':''}" onclick="pickOp('${o}',this)">${o}</button>`).join('');
   $('#f-btyp').innerHTML=[['hiver','Hiver'],['été','Été']].map(([k,l])=>`<button class="opt${k===state.btyp?' sel':''}" onclick="pick('btyp','${k}',this)">${l}</button>`).join('');
@@ -882,7 +891,8 @@ function save(){
   if(!DATA.varietes.some(function(x){return x.nom===v;}))addUserVariety(v,fam);
   if(state.mode==='greffe'){
     const eff=parseInt($('#f-eff').value)||0;
-    state.records.unshift({id:uid(),type:'greffe',v,famille:fam,pg:$('#f-pg').value,rang:state.rang,annee:yr,greffe:eff>0?'oui':'non',prev:parseInt($('#f-prev').value)||0,eff,op:state.op||null,rep:null,regr:null,rep2:null,invendus:null,rupture:null,date:today(),mt:Date.now()});
+    var _pgv=($('#f-pg').value||'').trim();if(_pgv){state.lastPg=_pgv;try{localStorage.setItem('pepins_lastpg',_pgv);}catch(e){}}
+    state.records.unshift({id:uid(),type:'greffe',v,famille:fam,pg:_pgv,rang:state.rang,annee:yr,greffe:eff>0?'oui':'non',prev:parseInt($('#f-prev').value)||0,eff,op:state.op||null,rep:null,regr:null,rep2:null,invendus:null,rupture:null,date:today(),mt:Date.now()});
     toast('Greffe enregistrée · '+v);
     state.gYear=yr;go('greffes',navBtn('greffes'));
   }else if(state.mode==='bouture'){
@@ -1995,6 +2005,7 @@ function appBoot(){if(_booted)return;_booted=true;try{init();}catch(e){}try{clou
 
 function init(){
   loadUserVars();try{applyRenames();}catch(e){}loadSemences();loadElevage();loadTodo();loadArros();loadPieds();loadCmd();
+  try{state.lastPg=localStorage.getItem('pepins_lastpg')||null;}catch(e){}
   let db=loadDB();
   if(db&&db.length!==undefined){state.records=db;}
   else{
