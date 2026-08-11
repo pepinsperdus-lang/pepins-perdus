@@ -369,7 +369,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.41';
+const APP_VERSION='2026.42';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent'};
@@ -600,7 +600,8 @@ function openGreffeVar(v){
   var rows=recs.map(function(r){
     var tt=tauxReprise(r);var c=r.rupture?'pr':tauxClass(tt);
     var lab=r.rupture?'rupture':(tt==null?(r.greffe==='oui'?'à suivre':(r.prev?'prévu '+r.prev:'—')):pct(tt)+'%');
-    var sub=[r.eff?r.eff+' greffées':(r.prev?r.prev+' prévues':'—'),r.rep!=null?r.rep+' reprises':null,r.rang?'rang '+r.rang:null].filter(Boolean).join(' · ');
+    var _dd=dispo(r);
+    var sub=[r.eff?r.eff+' greffées':(r.prev?r.prev+' prévues':'—'),_dd!=null?_dd+' dispo':null,r.rang?'rang '+r.rang:null].filter(Boolean).join(' · ');
     return '<div class="ent" onclick="closeSheet();openRec(\''+r.id+'\')" style="cursor:pointer"><div class="av" style="background:#6a8f5e;font-size:11px">'+((r.pg||'?').replace(/[^A-Za-z0-9]/g,'').slice(0,3)||'PG')+'</div><div class="m"><b>'+esc(r.pg||'Sans porte-greffe')+'</b><span>'+sub+'</span></div><div class="pill '+c+'">'+lab+'</div></div>';
   }).join('');
   $('#sheetbody').innerHTML='<div class="grab"></div><h2 style="font-size:20px;margin:0 0 2px">'+esc(v)+'</h2>'
