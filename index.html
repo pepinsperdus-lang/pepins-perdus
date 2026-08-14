@@ -132,10 +132,11 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
 .ac div:last-child{border-bottom:none}
 .ac div small{color:var(--muted,#7c8a7f);font-weight:500}
 .pm-cur{outline:3px solid #c99a3c;outline-offset:-3px;border-radius:12px}
-#pieds-nav{display:none;align-items:center;gap:2px;flex:none;margin-left:6px}
+#pieds-q{padding-right:104px}
+#pieds-nav{position:absolute;right:6px;top:6px;display:none;align-items:center;gap:3px;background:#fff;border-radius:8px}
 #pieds-nav.on{display:flex}
-#pieds-nav button{background:#eef3ea;border:1px solid #d8e0d4;color:#3f7350;width:30px;height:30px;border-radius:8px;font-size:17px;font-weight:700;line-height:1;cursor:pointer;padding:0}
-#pieds-nav span{font-size:12px;font-weight:700;color:#4b7f52;min-width:34px;text-align:center}
+#pieds-nav button{background:#3f7350;border:none;color:#fff;width:30px;height:30px;border-radius:8px;font-size:17px;font-weight:700;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
+#pieds-nav span{font-size:12px;font-weight:700;color:#4b7f52;min-width:30px;text-align:center}
 </style>
 </head>
 <body>
@@ -379,7 +380,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.50';
+const APP_VERSION='2026.51';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1417,7 +1418,7 @@ var PIEDS_FAM_ORDER=['Verger','Asiminiers','Serres','Pergolas','Forêt-jardin','
 // --- navigation type "Notes iPhone" entre les cases trouvées ---
 var _pmIdx=0,_pmTotal=0,_pmQ=null;
 function _pmFocus(){var cur=document.querySelector('.pm-cur');if(cur)cur.classList.remove('pm-cur');var el=document.getElementById('pmatch-'+_pmIdx);if(el){el.classList.add('pm-cur');try{el.scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}}}
-function _pmUpdateNav(){var nav=document.getElementById('pieds-nav');if(!nav)return;if(!_pmTotal){nav.classList.remove('on');nav.innerHTML='';return;}nav.innerHTML='<button onclick="pmNav(-1)" aria-label="Précédent">‹</button><span>'+(_pmIdx+1)+'/'+_pmTotal+'</span><button onclick="pmNav(1)" aria-label="Suivant">›</button>';nav.classList.add('on');setTimeout(_pmFocus,60);}
+function _pmUpdateNav(){var nav=document.getElementById('pieds-nav');if(!nav)return;if(!_pmTotal){nav.classList.remove('on');nav.innerHTML='';return;}nav.innerHTML='<button onclick="pmNav(-1)" aria-label="Précédent">↑</button><span>'+(_pmIdx+1)+'/'+_pmTotal+'</span><button onclick="pmNav(1)" aria-label="Suivant">↓</button>';nav.classList.add('on');setTimeout(_pmFocus,60);}
 function pmNav(d){if(!_pmTotal)return;_pmIdx=(_pmIdx+d+_pmTotal)%_pmTotal;var nav=document.getElementById('pieds-nav');if(nav){var sp=nav.querySelector('span');if(sp)sp.textContent=(_pmIdx+1)+'/'+_pmTotal;}_pmFocus();}
 function piedsFam(z){var zl=(z||'').toLowerCase();
   if(z==='Verger')return 'Verger';
