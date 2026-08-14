@@ -374,7 +374,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.45';
+const APP_VERSION='2026.46';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1851,7 +1851,8 @@ var FBCFG={apiKey:"AIzaSyAfocVRjYDsfYIHistn3O-sPlLjho5Ut7w",authDomain:"pepins-p
 var _fbdb=null,_fbLast={},_fbReady=false,_fbPending={},_fbApplying=false,_fbRenderT=null;
 var _FBLS={elevage:'pepins_elevage_v1',todo:'pepins_todo_v1',arros:'pepins_arros_v1',sem:SEMKEY,pieds:'pepins_pieds_v1',cmd:'pepins_cmd_v1',uservars:UVKEY};
 function _fbLoadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('load '+src));};document.head.appendChild(s);});}
-async function _fbEnsureSdk(){if(window.firebase&&window.firebase.database)return;await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js');}
+async function _fbEnsureSdk(){if(window.firebase&&window.firebase.database&&window.firebase.auth)return;await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js');await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js');}
+function _fbStoreEmptyStr(key,str){try{if(str==null||str===''||str==='null')return true;return _isEmptyVal(key,JSON.parse(str));}catch(e){return true;}}
 function _fbRenderSoon(){clearTimeout(_fbRenderT);_fbRenderT=setTimeout(function(){try{refreshCurrent();}catch(e){}try{renderHome();}catch(e){}},180);}
 function _fbApplyStore(key,val){
   try{
@@ -1897,6 +1898,7 @@ async function fbInit(){
   try{
     await _fbEnsureSdk();
     if(!firebase.apps.length)firebase.initializeApp(FBCFG);
+    try{await firebase.auth().signInAnonymously();}catch(e){}   // connexion anonyme (requise par les regles de securite)
     _fbdb=firebase.database();window._fbdb=_fbdb;
     // 1) reconcile initial des fiches (adopte le cloud sauf si local plus recent ; jamais de perte)
     var snap=await _fbdb.ref('records').get();var fbMap=snap.val()||{};
@@ -1909,9 +1911,17 @@ async function fbInit(){
     });
     (state.records||[]).forEach(function(r){if(r&&r.id&&!seen[r.id])merged.push(r);});
     state.records=merged;try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){}
-    // 2) stores initiaux
+    // 2) stores initiaux (garde anti-ecrasement : une donnee vide n'ecrase jamais une donnee pleine ; on renvoie le local si le cloud est vide/absent)
     var ss=await _fbdb.ref('stores').get();var sv=ss.val()||{};
-    Object.keys(_FBLS).forEach(function(k){if(sv[k]!=null)_fbApplyStore(k,sv[k]);});
+    Object.keys(_FBLS).forEach(function(k){
+      var fbv=sv[k];var loc=localStorage.getItem(_FBLS[k]);
+      if(fbv!=null){
+        if(_fbStoreEmptyStr(k,fbv)&&loc&&!_fbStoreEmptyStr(k,loc)){try{_fbdb.ref('stores/'+k).set(loc);}catch(e){}}
+        else{_fbApplyStore(k,fbv);}
+      } else if(loc&&!_fbStoreEmptyStr(k,loc)){
+        try{_fbdb.ref('stores/'+k).set(loc);}catch(e){}
+      }
+    });
     _fbRenderSoon();
     // 3) pousse les fiches locales plus recentes / absentes puis attend la fin avant d'ecouter (evite les rebonds)
     _fbReady=true;await fbSyncRecords();
@@ -1922,7 +1932,7 @@ async function fbInit(){
     rr.on('child_added',function(s){_fbRecordEvent(s,false);});
     rr.on('child_changed',function(s){_fbRecordEvent(s,false);});
     rr.on('child_removed',function(s){_fbRecordEvent(s,true);});
-    Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).on('value',function(s){var v=s.val();if(v!=null)_fbApplyStore(k,v);});});
+    Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).on('value',function(s){var v=s.val();if(v==null)return;var loc=localStorage.getItem(_FBLS[k]);if(_fbStoreEmptyStr(k,v)&&loc&&!_fbStoreEmptyStr(k,loc))return;_fbApplyStore(k,v);});});
     try{_cloudDot();}catch(e){}
   }catch(e){_fbReady=false;setTimeout(fbInit,10000);}
 }
