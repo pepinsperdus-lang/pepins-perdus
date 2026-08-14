@@ -374,7 +374,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.48';
+const APP_VERSION='2026.49';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1336,8 +1336,9 @@ var TODO={items:[]};
 function loadTodo(){try{var s=JSON.parse(localStorage.getItem('pepins_todo_v1')||'null');if(s&&s.items){TODO=s;return;}}catch(e){}TODO={items:[]};}
 function saveTodo(){try{localStorage.setItem('pepins_todo_v1',JSON.stringify(TODO));}catch(e){}cloudPush('todo',TODO);}
 function renderTodo(){
-  var open=TODO.items.filter(function(t){return !t.done;});
-  var done=TODO.items.filter(function(t){return t.done;});
+  var _sortT=function(arr){return arr.slice().sort(function(a,b){return (b.o||0)-(a.o||0)||(a.id<b.id?-1:(a.id>b.id?1:0));});}; // ordre stable identique sur tous les appareils
+  var open=_sortT(TODO.items.filter(function(t){return !t.done;}));
+  var done=_sortT(TODO.items.filter(function(t){return t.done;}));
   var el=document.getElementById('todo-count');if(el)el.textContent=open.length?open.length+' tâche'+(open.length>1?'s':'')+' à faire':'Rien à faire 🎉';
   var list=document.getElementById('todolist');if(!list)return;
   var h='';
@@ -1354,7 +1355,7 @@ function renderTodo(){
   list.innerHTML=h;
 }
 function untoggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=false;saveTodo();renderTodo();toast('Remise à faire');}
-function addTodo(){var i=document.getElementById('todo-new');var v=(i.value||'').trim();if(!v)return;TODO.items.unshift({id:uid(),txt:v,done:false});i.value='';saveTodo();renderTodo();}
+function addTodo(){var i=document.getElementById('todo-new');var v=(i.value||'').trim();if(!v)return;TODO.items.unshift({id:uid(),txt:v,done:false,o:Date.now()});i.value='';saveTodo();renderTodo();}
 function toggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=true;saveTodo();renderTodo();toastUndo('✓ fait',function(){t.done=false;saveTodo();renderTodo();});}
 function delTodo(id){var removed=TODO.items.filter(function(x){return x.id===id;})[0];TODO.items=TODO.items.filter(function(x){return x.id!==id;});saveTodo();renderTodo();toastUndo('Tâche supprimée',function(){if(removed){TODO.items.unshift(removed);saveTodo();renderTodo();}});}
 
