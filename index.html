@@ -374,7 +374,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.46';
+const APP_VERSION='2026.47';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1854,13 +1854,30 @@ function _fbLoadScript(src){return new Promise(function(res,rej){var s=document.
 async function _fbEnsureSdk(){if(window.firebase&&window.firebase.database&&window.firebase.auth)return;await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js');await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js');}
 function _fbStoreEmptyStr(key,str){try{if(str==null||str===''||str==='null')return true;return _isEmptyVal(key,JSON.parse(str));}catch(e){return true;}}
 function _fbRenderSoon(){clearTimeout(_fbRenderT);_fbRenderT=setTimeout(function(){try{refreshCurrent();}catch(e){}try{renderHome();}catch(e){}},180);}
+// fusion "union" : garde tout ce qui existe d'un cote ou de l'autre (b=distant gagne sur conflit de valeur). Empeche toute perte d'element de liste.
+function _fbMerge(a,b){
+  if(Array.isArray(a)&&Array.isArray(b)){
+    var kf=function(x){return (x&&typeof x==='object')?(x.id!=null?('#'+x.id):(x.nom!=null?('n'+x.nom):JSON.stringify(x))):('v'+String(x));};
+    var m={},order=[];
+    a.forEach(function(x){var k=kf(x);if(!(k in m))order.push(k);m[k]=x;});
+    b.forEach(function(x){var k=kf(x);if(!(k in m))order.push(k);m[k]=x;});
+    return order.map(function(k){return m[k];});
+  }
+  if(a&&b&&typeof a==='object'&&typeof b==='object'){var out={},k;for(k in a)out[k]=a[k];for(k in b){out[k]=(k in a)?_fbMerge(a[k],b[k]):b[k];}return out;}
+  return (b===undefined?a:b);
+}
+// applique une valeur de store distante en la FUSIONNANT avec le local (jamais de remplacement destructif). Retourne la chaine fusionnee.
 function _fbApplyStore(key,val){
   try{
     _fbApplying=true;
-    var ls=_FBLS[key];if(!ls)return;
-    if(localStorage.getItem(ls)===val)return; // notre propre echo
-    localStorage.setItem(ls,val);
-    var obj=null;try{obj=JSON.parse(val);}catch(e){}
+    var ls=_FBLS[key];if(!ls)return null;
+    var incoming=null;try{incoming=JSON.parse(val);}catch(e){}
+    if(incoming==null)return null;
+    var loc=null;try{var lr=localStorage.getItem(ls);loc=(lr&&lr!=='null')?JSON.parse(lr):null;}catch(e){}
+    var obj=(loc!=null)?_fbMerge(loc,incoming):incoming;
+    var mergedStr=JSON.stringify(obj);
+    if(localStorage.getItem(ls)===mergedStr)return mergedStr; // rien de nouveau
+    localStorage.setItem(ls,mergedStr);
     if(key==='elevage'){if(obj&&obj.lots)ELEV=obj;}
     else if(key==='todo'){if(obj&&obj.items)TODO=obj;}
     else if(key==='arros'){if(obj&&obj.zones)ARROS=obj;}
@@ -1869,7 +1886,8 @@ function _fbApplyStore(key,val){
     else if(key==='cmd'){if(obj)CMD={rows:obj.rows||null,done:obj.done||{}};}
     else if(key==='uservars'){try{loadUserVars();}catch(e){}}
     _fbRenderSoon();
-  }finally{_fbApplying=false;}
+    return mergedStr;
+  }catch(e){return null;}finally{_fbApplying=false;}
 }
 function _fbUpsertRecord(id,rec){
   var arr=state.records,i=-1;for(var k=0;k<arr.length;k++){if(arr[k].id===id){i=k;break;}}
@@ -1911,13 +1929,13 @@ async function fbInit(){
     });
     (state.records||[]).forEach(function(r){if(r&&r.id&&!seen[r.id])merged.push(r);});
     state.records=merged;try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){}
-    // 2) stores initiaux (garde anti-ecrasement : une donnee vide n'ecrase jamais une donnee pleine ; on renvoie le local si le cloud est vide/absent)
+    // 2) stores initiaux : FUSION local+cloud (union) ; on renvoie la fusion si elle contient des elements que le cloud n'a pas. Aucune liste ne peut retrecir.
     var ss=await _fbdb.ref('stores').get();var sv=ss.val()||{};
     Object.keys(_FBLS).forEach(function(k){
       var fbv=sv[k];var loc=localStorage.getItem(_FBLS[k]);
       if(fbv!=null){
-        if(_fbStoreEmptyStr(k,fbv)&&loc&&!_fbStoreEmptyStr(k,loc)){try{_fbdb.ref('stores/'+k).set(loc);}catch(e){}}
-        else{_fbApplyStore(k,fbv);}
+        var mergedStr=_fbApplyStore(k,fbv);
+        if(mergedStr&&mergedStr!==fbv){try{_fbdb.ref('stores/'+k).set(mergedStr);}catch(e){}}
       } else if(loc&&!_fbStoreEmptyStr(k,loc)){
         try{_fbdb.ref('stores/'+k).set(loc);}catch(e){}
       }
@@ -1932,7 +1950,7 @@ async function fbInit(){
     rr.on('child_added',function(s){_fbRecordEvent(s,false);});
     rr.on('child_changed',function(s){_fbRecordEvent(s,false);});
     rr.on('child_removed',function(s){_fbRecordEvent(s,true);});
-    Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).on('value',function(s){var v=s.val();if(v==null)return;var loc=localStorage.getItem(_FBLS[k]);if(_fbStoreEmptyStr(k,v)&&loc&&!_fbStoreEmptyStr(k,loc))return;_fbApplyStore(k,v);});});
+    Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).on('value',function(s){var v=s.val();if(v==null)return;_fbApplyStore(k,v);});});
     try{_cloudDot();}catch(e){}
   }catch(e){_fbReady=false;setTimeout(fbInit,10000);}
 }
