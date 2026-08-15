@@ -383,7 +383,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.55';
+const APP_VERSION='2026.56';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -523,7 +523,7 @@ function goRec(type,v,id,annee){try{
 }catch(e){}}
 
 // ---- PERFORMANCE COMMERCIALE (ventes réelles du site) ----
-var BEST_URL='https://hook.eu1.make.com/12hhddtn4yg2pv5jpu7fqr6gghwpe48h';
+var BEST_URL='https://pepins-presta.pepinsperdus.workers.dev/bestsellers';
 var BEST_KEY='pepins_bestsell_v2';
 var _bestLoading=false;
 function _bestCache(){try{return JSON.parse(localStorage.getItem(BEST_KEY)||'null');}catch(e){return null;}}
@@ -1258,9 +1258,9 @@ function renderRepiq(r){var bt=bTot(r);var rac=bt.rr||0;var done=r.repique||0;va
 }
 function repiquerBouture(id){var r=state.records.find(function(x){return x.id===id;});if(!r)return;var q=parseInt((document.getElementById('repq')||{}).value||'0',10)||0;if(q<=0){toast('Quantité repiquée ?');return;}mergeLot(r.v,r.famille,'bouture','Godet',q);r.repique=(r.repique||0)+q;saveDB();saveElev();renderRepiq(r);toast(fmt(q)+' × '+r.v+' repiqué → stock global');}
 
-// ---- STOCK DU SITE (lecture live PrestaShop via Make, lecture seule) ----
-var SITE_WRITE_URL='https://hook.eu1.make.com/ku1e4a29go1b3hbev52xc999abt68exu';
-var SITE_STOCK_URL='https://hook.eu1.make.com/dc4j7t9kva8p8xs7sahpe8941jme6dbd';
+// ---- STOCK DU SITE (lecture + écriture live PrestaShop via proxy Cloudflare) ----
+var SITE_WRITE_URL='https://pepins-presta.pepinsperdus.workers.dev/write';
+var SITE_STOCK_URL='https://pepins-presta.pepinsperdus.workers.dev/stock';
 // ---- Réassort groupé (batch) : on prépare les changements hors ligne puis on envoie tout d'un coup ----
 var SITEPEND=(function(){try{return JSON.parse(localStorage.getItem('pepins_sitepend')||'{}')||{};}catch(e){return {};}})();
 var _stockBatch=(function(){try{return localStorage.getItem('pepins_stockbatch')!=='0';}catch(e){return true;}})();
@@ -1296,11 +1296,11 @@ function flushSitePending(btn){
       _saveSitePend();renderSite();
       var rest=Object.keys(SITEPEND).length;
       toast(applied+' produit'+(applied>1?'s':'')+' mis à jour sur le site'+(rest?' · '+rest+' non confirmé(s)':' ✓'));
-    }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Tout envoyer';}toast('Envoi impossible — Make est peut-être en pause (crédit épuisé).');});
+    }).catch(function(){if(btn){btn.disabled=false;btn.textContent='Tout envoyer';}toast('Envoi impossible — connexion au site interrompue, réessaie.');});
   }
   next();
 }
-var SITE_PROD_URL='https://hook.eu1.make.com/xztxjdmk2ku3dhxsaqh3a3t1npe2emgc';
+var SITE_PROD_URL='https://pepins-presta.pepinsperdus.workers.dev/products';
 var SITE={loaded:false,loading:false,ts:0,rows:[],err:null};
 function _saveSiteCache(){try{localStorage.setItem('pepins_sitecache',JSON.stringify({rows:SITE.rows,ts:SITE.ts}));}catch(e){}}
 function _hydrateSiteCache(){try{var c=JSON.parse(localStorage.getItem('pepins_sitecache')||'null');if(c&&c.rows&&c.rows.length){SITE.rows=c.rows;SITE.byName={};SITE.bySaid={};c.rows.forEach(function(x){SITE.byName[normName(x.nom)]=x;SITE.bySaid[x.said]=x;});SITE.loaded=true;SITE.ts=c.ts||0;SITE.cache=true;return true;}}catch(e){}return false;}
@@ -1337,7 +1337,7 @@ function renderSite(){
   if(kpi)kpi.innerHTML='<div class="kpi hero"><div class="n">'+fmt(rows.length)+'</div><div class="l">variétés en vente sur le site</div></div>'+
     '<div class="kpi"><div class="n">'+fmt(units)+'</div><div class="l">unités en vente'+(big?' (hors '+big+' gros lots)':'')+'</div></div>'+
     '<div class="kpi">'+(low?'<span class="chip down">'+low+'</span>':'')+'<div class="n" style="'+(low?'color:#b0512c':'')+'">'+fmt(low)+'</div><div class="l">Stock faible (≤5)</div></div>';
-  if(st){var dt=new Date(SITE.ts);var hhmm=('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);st.textContent=(SITE.cache?'📴 En cache · lu à '+hhmm+' (envoi bloqué tant que Make est en pause)':'À jour · '+hhmm);}
+  if(st){var dt=new Date(SITE.ts);var hhmm=('0'+dt.getHours()).slice(-2)+':'+('0'+dt.getMinutes()).slice(-2);st.textContent=(SITE.cache?'📴 En cache · lu à '+hhmm+' (reconnecte-toi pour envoyer)':'À jour · '+hhmm);}
   if(fil)fil.innerHTML=[['all','Tout'],['low','Stock faible']].map(function(f){return '<button class="'+(siteFilter===f[0]?'on':'')+'" onclick="siteFilter=\''+f[0]+'\';renderSite()">'+f[1]+'</button>';}).join('');
   var q=((document.getElementById('site-q')||{}).value||'').toLowerCase();
   var view=(siteFilter==='low')?rows.filter(function(r){return r.qty<=5;}):rows.slice();
