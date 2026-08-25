@@ -290,12 +290,12 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
     <section class="view" id="v-elevage">
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Stock global</h2>
       <p class="dsub">Tout ce que tu as de vivant, par origine &mdash; ta r&eacute;serve, pas encore en vente.</p>
+      <button class="save" style="margin:10px 0 4px" onclick="openElevSheet()">&#10133; Ajouter un lot au stock global</button>
       <div class="kgrid" id="elev-kpi"></div>
       <div class="chips" id="elev-ori" style="margin:14px 0 0"></div>
       <div class="seg" id="elev-filter" style="margin-top:12px"></div>
       <div class="card" id="elevlist"></div>
-      <button class="ghost" style="margin-top:12px" onclick="openElevSheet()">&#10133; Ajouter un lot au stock global</button>
-      <p class="hint" style="margin-top:8px">&laquo;&nbsp;En vente&nbsp;&raquo; bascule un lot vers le stock disponible du site et le retire de la r&eacute;serve.</p>
+      <p class="hint" style="margin-top:12px">&laquo;&nbsp;En vente&nbsp;&raquo; bascule un lot vers le stock disponible du site et le retire de la r&eacute;serve.</p>
     </section>
 
     <section class="view" id="v-stock">
@@ -316,9 +316,11 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Tâches &middot; pépinière</h2>
       <p class="dsub">Ce qu'il y a à faire sur la pépinière. Tu coches &rarr; ça disparaît.</p>
       <div class="togglerow"><span id="todo-count" style="color:var(--muted);font-weight:600"></span></div>
+      <div style="display:flex;gap:8px;margin:8px 0 12px">
+        <input class="inp" id="todo-new" style="flex:1" placeholder="Nouvelle tâche…" onkeydown="if(event.key==='Enter')addTodo()">
+        <button class="save" onclick="addTodo()" style="width:auto;margin:0;padding:0 18px;flex:none">&#10133; Ajouter</button>
+      </div>
       <div class="card" id="todolist"></div>
-      <div class="field" style="margin-top:14px"><input class="inp" id="todo-new" placeholder="Nouvelle tâche…" onkeydown="if(event.key==='Enter')addTodo()"></div>
-      <button class="save" onclick="addTodo()">&#10133; Ajouter</button>
     </section>
 
     <section class="view" id="v-arrosage">
@@ -383,7 +385,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.56';
+const APP_VERSION='2026.57';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -433,7 +435,7 @@ function show(v){try{var _pv=(document.querySelector('.view.on')||{}).id;_pv=_pv
   try{var _fab=document.querySelector('.nav .fab');if(_fab)_fab.style.display='';}catch(e){}}
 
 function seasonByDate(){try{var mo=(new Date()).getMonth()+1;return (mo>=5&&mo<=10)?"été":"hiver";}catch(e){return "hiver";}}
-function fabAdd(){var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');var m=(cur==='boutures')?'bouture':(cur==='semis')?'semis':'greffe';state.mode=m;if(m==="bouture"){state.btyp=seasonByDate();try{var _bt=document.getElementById("f-btyp");if(_bt)_bt.innerHTML=[["hiver","Hiver"],["été","Été"]].map(function(kv){return '<button class="opt'+(kv[0]===state.btyp?" sel":"")+'" onclick="pick(&#39;btyp&#39;,&#39;'+kv[0]+'&#39;,this)">'+kv[1]+'</button>';}).join("");}catch(e){}}go('add',navBtn('add'));try{var b=document.querySelector('.seg [data-mode=\"'+m+'\"]');if(b)mode(m,b);}catch(e){}try{setTimeout(function(){var v=document.getElementById('f-var');if(v)v.focus();},140);}catch(e){}}
+function fabAdd(){var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');if(cur==='elevage'){openElevSheet();return;}var m=(cur==='boutures')?'bouture':(cur==='semis')?'semis':'greffe';state.mode=m;if(m==="bouture"){state.btyp=seasonByDate();try{var _bt=document.getElementById("f-btyp");if(_bt)_bt.innerHTML=[["hiver","Hiver"],["été","Été"]].map(function(kv){return '<button class="opt'+(kv[0]===state.btyp?" sel":"")+'" onclick="pick(&#39;btyp&#39;,&#39;'+kv[0]+'&#39;,this)">'+kv[1]+'</button>';}).join("");}catch(e){}}go('add',navBtn('add'));try{var b=document.querySelector('.seg [data-mode=\"'+m+'\"]');if(b)mode(m,b);}catch(e){}try{setTimeout(function(){var v=document.getElementById('f-var');if(v)v.focus();},140);}catch(e){}}
 function mode(m,btn){state.mode=m;document.querySelectorAll('.seg [data-mode]').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   $('#greffe-fields').style.display=m==='greffe'?'block':'none';$('#bouture-fields').style.display=m==='bouture'?'block':'none';$('#semis-fields').style.display=m==='semis'?'block':'none';
   $('#savebtn').textContent=m==='greffe'?'Enregistrer la greffe':(m==='bouture'?'Enregistrer la bouture':'Enregistrer le semis');}
@@ -1398,7 +1400,10 @@ function renderTodo(){
   var list=document.getElementById('todolist');if(!list)return;
   var h='';
   if(open.length){h+=open.map(function(t){
-    return '<div class="ent"><button onclick="toggleTodo(\''+t.id+'\')" title="Fait" style="width:30px;height:30px;border-radius:8px;flex:none;border:2px solid #cbd3c6;background:#fff"></button><div class="m"><b style="font-weight:600;white-space:normal">'+esc(t.txt)+'</b></div><button onclick="delTodo(\''+t.id+'\')" title="Supprimer" style="background:none;border:none;color:#c3cabb;font-size:18px;padding:8px 10px">&times;</button></div>';
+    var mid=(state.todoEdit===t.id)
+      ? '<input class="inp" id="todo-edit" value="'+esc(t.txt)+'" style="font-size:15px;padding:8px 10px" onkeydown="if(event.key===\'Enter\')saveEditTodo(\''+t.id+'\');if(event.key===\'Escape\')cancelEditTodo()" onblur="saveEditTodo(\''+t.id+'\')">'
+      : '<b style="font-weight:600;white-space:normal;cursor:text" onclick="startEditTodo(\''+t.id+'\')">'+esc(t.txt)+'</b>';
+    return '<div class="ent"><button onclick="toggleTodo(\''+t.id+'\')" title="Fait" style="width:30px;height:30px;border-radius:8px;flex:none;border:2px solid #cbd3c6;background:#fff"></button><div class="m">'+mid+'</div><button onclick="delTodo(\''+t.id+'\')" title="Supprimer" style="background:none;border:none;color:#c3cabb;font-size:18px;padding:8px 10px">&times;</button></div>';
   }).join('');}
   else if(!done.length){h+=emptyBox('Ajoute ta première tâche ci-dessous.');}
   if(done.length){var sd=!!state.todoShowDone;
@@ -1411,6 +1416,9 @@ function renderTodo(){
 }
 function untoggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=false;saveTodo();renderTodo();toast('Remise à faire');}
 function addTodo(){var i=document.getElementById('todo-new');var v=(i.value||'').trim();if(!v)return;TODO.items.unshift({id:uid(),txt:v,done:false,o:Date.now()});i.value='';saveTodo();renderTodo();}
+function startEditTodo(id){state.todoEdit=id;renderTodo();setTimeout(function(){var e=document.getElementById('todo-edit');if(e){e.focus();try{e.select();}catch(_){}}},40);}
+function cancelEditTodo(){state.todoEdit=null;renderTodo();}
+function saveEditTodo(id){if(state.todoEdit!==id)return;var e=document.getElementById('todo-edit');var v=e?(e.value||'').trim():'';var t=TODO.items.filter(function(x){return x.id===id;})[0];state.todoEdit=null;if(t&&v&&v!==t.txt){t.txt=v;saveTodo();}renderTodo();}
 function toggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=true;saveTodo();renderTodo();toastUndo('✓ fait',function(){t.done=false;saveTodo();renderTodo();});}
 function delTodo(id){var removed=TODO.items.filter(function(x){return x.id===id;})[0];TODO.items=TODO.items.filter(function(x){return x.id!==id;});saveTodo();renderTodo();toastUndo('Tâche supprimée',function(){if(removed){TODO.items.unshift(removed);saveTodo();renderTodo();}});}
 
