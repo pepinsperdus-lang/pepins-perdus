@@ -348,6 +348,14 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <div class="card" id="fond-hist"></div>
     </section>
 
+    <section class="view" id="v-facpro">
+      <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Factures pro</h2>
+      <p class="dsub">Les ventes aux professionnels &agrave; facturer dans E-Fac. Cr&eacute;e la facture, puis coche « factur&eacute; ».</p>
+      <div class="togglerow"><span id="facpro-count" style="color:var(--muted);font-weight:600"></span></div>
+      <div id="facpro-list" style="margin-top:8px"></div>
+      <p class="hint" style="margin-top:8px">Les noms d'articles correspondent &agrave; ton catalogue E-Fac. Sur demande, je peux cr&eacute;er ces factures en brouillon dans E-Fac automatiquement.</p>
+    </section>
+
     <section class="view" id="v-todo">
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Tâches &middot; pépinière</h2>
       <p class="dsub">Ce qu'il y a à faire sur la pépinière. Tu coches &rarr; ça disparaît.</p>
@@ -421,7 +429,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.62';
+const APP_VERSION='2026.63';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -465,9 +473,9 @@ function semis(){return state.records.filter(r=>r.type==='semis');}
 
 function go(v,btn){show(v);document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));const nb=(btn&&btn.dataset&&btn.dataset.v)?btn:navBtn(v);if(nb)nb.classList.add('on');}
 function show(v){try{var _pv=(document.querySelector('.view.on')||{}).id;_pv=_pv?_pv.replace('v-',''):null;if(!window._goingBack&&_pv&&_pv!==v){navHist.push(_pv);if(navHist.length>40)navHist.shift();}window._goingBack=false;}catch(e){}document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));$('#v-'+v).classList.add('on');$('.scroll').scrollTop=0;
-  if(v==='home')renderHome();if(v==='greffes')renderGreffes();if(v==='boutures')renderBoutures();if(v==='semis')renderSemis();if(v==='cmd')renderCmd();if(v==='stats')renderStats();if(v==='plan')renderPlan();if(v==='cat')renderCat();if(v==='semences')renderSemences();if(v==='elevage')renderElevage();if(v==='stock')renderStock();if(v==='todo')renderTodo();if(v==='arrosage')renderArros();if(v==='pieds')renderPieds();if(v==='hormones')renderHormones();if(v==='caisse')renderCaisse();if(v==='fond')renderFond();
+  if(v==='home')renderHome();if(v==='greffes')renderGreffes();if(v==='boutures')renderBoutures();if(v==='semis')renderSemis();if(v==='cmd')renderCmd();if(v==='stats')renderStats();if(v==='plan')renderPlan();if(v==='cat')renderCat();if(v==='semences')renderSemences();if(v==='elevage')renderElevage();if(v==='stock')renderStock();if(v==='todo')renderTodo();if(v==='arrosage')renderArros();if(v==='pieds')renderPieds();if(v==='hormones')renderHormones();if(v==='caisse')renderCaisse();if(v==='fond')renderFond();if(v==='facpro')renderFacpro();
   // nav highlight for quicklink views
-  if(['stats','plan','cat','semences','semis','elevage','stock','todo','arrosage','pieds','hormones','caisse','fond'].includes(v)){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));}
+  if(['stats','plan','cat','semences','semis','elevage','stock','todo','arrosage','pieds','hormones','caisse','fond','facpro'].includes(v)){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));}
   try{var _fab=document.querySelector('.nav .fab');if(_fab)_fab.style.display='';}catch(e){}}
 
 function seasonByDate(){try{var mo=(new Date()).getMonth()+1;return (mo>=5&&mo<=10)?"été":"hiver";}catch(e){return "hiver";}}
@@ -1460,7 +1468,7 @@ function delTodo(id){var removed=TODO.items.filter(function(x){return x.id===id;
 
 // ---- CAISSE (vente sur place · déstockage auto du site) ----
 var CAISSE={sales:[],tva:5.5,catTTC:false};
-function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v1')||'null');if(s&&s.sales){CAISSE=s;}}catch(e){}if(!CAISSE.sales)CAISSE.sales=[];if(CAISSE.tva==null||isNaN(CAISSE.tva))CAISSE.tva=5.5;if(CAISSE.catTTC==null)CAISSE.catTTC=false;if(!CAISSE.fond)CAISSE.fond={denoms:{},total:0,ts:0};if(!CAISSE.counts)CAISSE.counts=[];if(!state.cart)state.cart=[];if(!state.countDraft)state.countDraft={};if(!state.caissePay)state.caissePay='espece';}
+function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v1')||'null');if(s&&s.sales){CAISSE=s;}}catch(e){}if(!CAISSE.sales)CAISSE.sales=[];if(CAISSE.tva==null||isNaN(CAISSE.tva))CAISSE.tva=5.5;if(CAISSE.catTTC==null)CAISSE.catTTC=false;if(!CAISSE.fond)CAISSE.fond={denoms:{},total:0,ts:0};if(!CAISSE.counts)CAISSE.counts=[];if(!state.cart)state.cart=[];if(!state.countDraft)state.countDraft={};if(!state.caisseClient)state.caisseClient={};if(!state.caissePay)state.caissePay='espece';}
 function saveCaisse(){try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{cloudPush('caisse',CAISSE);}catch(e){}}
 function ceur(x){x=(+x)||0;return x.toFixed(2).replace('.',',')+' €';}
 function caisseTva(){return (CAISSE&&CAISSE.tva!=null&&!isNaN(CAISSE.tva))?Number(CAISSE.tva):5.5;}
@@ -1506,6 +1514,27 @@ function caisseSetPu(lid,v){var l=_line(lid);if(!l)return;v=parseFloat((''+v).re
 function caisseSetNom(lid,v){var l=_line(lid);if(l)l.nom=v;}
 function caisseRemove(lid){state.cart=(state.cart||[]).filter(function(x){return x.lid!==lid;});renderCaisseTicket();}
 function caissePayMode(m){state.caissePay=m;renderCaisseTicket();}
+function caisseTogglePro(v){state.caissePro=!!v;if(!state.caisseClient)state.caisseClient={};renderCaisseTicket();}
+function caisseSetClient(k,v){if(!state.caisseClient)state.caisseClient={};state.caisseClient[k]=v;}
+function _facproList(){return (CAISSE.sales||[]).filter(function(s){return s.pro&&!s.facture&&!s.void;});}
+function renderFacpro(){
+  var box=document.getElementById('facpro-list');if(!box)return;
+  var cnt=document.getElementById('facpro-count');
+  var list=_facproList();
+  if(cnt)cnt.textContent=list.length?(list.length+' vente'+(list.length>1?'s':'')+' à facturer'):'Rien à facturer 🎉';
+  if(!list.length){box.innerHTML=emptyBox('Aucune vente pro en attente de facture.');return;}
+  box.innerHTML=list.map(function(s){var d=new Date(s.ts);var ds=('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();
+    var cl=s.client||{};
+    var lignes=(s.lines||[]).map(function(l){return '<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>'+esc(l.nom||'')+' × '+l.qty+'</span><span>'+ceur((l.pu||0)*(l.qty||0))+'</span></div>';}).join('');
+    return '<div class="card" style="padding:12px;margin-bottom:10px">'
+     +'<div class="mrow" style="font-size:16px;font-weight:700"><span>'+esc(cl.nom||'Client pro')+'</span><b>'+ceur(s.total)+'</b></div>'
+     +'<div style="font-size:12px;color:var(--muted);margin-bottom:6px">'+ds+(cl.siret?' · SIRET '+esc(cl.siret):'')+(cl.email?' · '+esc(cl.email):'')+'</div>'
+     +lignes
+     +'<div style="display:flex;gap:8px;margin-top:10px"><button class="save" style="flex:1;margin:0;padding:9px" onclick="facproDone(\''+s.id+'\')">Marquer facturé</button></div>'
+     +'</div>';
+  }).join('');
+}
+function facproDone(id){var s=(CAISSE.sales||[]).filter(function(x){return x.id===id;})[0];if(!s)return;s.facture=true;s.factureTs=Date.now();saveCaisse();renderFacpro();toast('Vente marquée facturée');}
 function caisseRecu(v){state.caisseRecu=v;var el=document.getElementById('caisse-rendu');if(el){var r=(parseFloat((''+v).replace(',','.'))||0)-_cartTotal();el.textContent=((''+v).trim()===''?'—':ceur(Math.max(0,r)));}}
 function renderCaisseTicket(){
   var box=document.getElementById('caisse-ticket');var tel=document.getElementById('caisse-total');if(!box||!tel)return;
@@ -1538,7 +1567,12 @@ function renderCaisseTicket(){
    +'<div class="mrow" style="font-size:12px;color:var(--muted)"><span>dont TVA</span><span><b>'+ceur(tva)+'</b> · HT '+ceur(ht)+'</span></div>'
    +'<div class="seg" style="margin-top:12px">'+segs+'</div>'
    +(pay==='espece'?'<div style="display:flex;gap:10px;align-items:center;margin-top:10px"><span style="font-size:13px;color:var(--muted)">Reçu</span><input inputmode="decimal" value="'+esc(''+recu)+'" oninput="caisseRecu(this.value)" placeholder="€" style="width:90px;padding:8px;border:1px solid #dfe3d8;border-radius:8px"><span style="font-size:14px">Rendu : <b id="caisse-rendu">'+(rendu==null?'—':ceur(Math.max(0,rendu)))+'</b></span></div>':'')
-   +'<label class="togglerow" style="margin-top:10px;font-size:13px;gap:8px;cursor:pointer"><input type="checkbox" '+(state.caissePro?'checked':'')+' onchange="state.caissePro=this.checked" style="width:18px;height:18px;accent-color:#3f7350"> Client professionnel</label>'
+   +'<label class="togglerow" style="margin-top:10px;font-size:13px;gap:8px;cursor:pointer"><input type="checkbox" '+(state.caissePro?'checked':'')+' onchange="caisseTogglePro(this.checked)" style="width:18px;height:18px;accent-color:#3f7350"> Client professionnel (facture)</label>'
+   +(state.caissePro?('<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">'
+     +'<input class="inp" placeholder="Nom du client / société" value="'+esc((state.caisseClient||{}).nom||'')+'" oninput="caisseSetClient(\'nom\',this.value)">'
+     +'<div style="display:flex;gap:6px"><input class="inp" placeholder="SIRET (facultatif)" value="'+esc((state.caisseClient||{}).siret||'')+'" oninput="caisseSetClient(\'siret\',this.value)"><input class="inp" placeholder="E-mail (facultatif)" value="'+esc((state.caisseClient||{}).email||'')+'" oninput="caisseSetClient(\'email\',this.value)"></div>'
+     +'<input class="inp" placeholder="Adresse (facultatif)" value="'+esc((state.caisseClient||{}).adresse||'')+'" oninput="caisseSetClient(\'adresse\',this.value)">'
+     +'</div>'):'')
    +'<button class="save" style="margin-top:12px" onclick="caisseValidate()">Encaisser '+ceur(total)+'</button>'
    +'</div>';
 }
@@ -1550,8 +1584,9 @@ function caisseValidate(){
   var sale={id:uid(),ts:Date.now(),pay:(state.caissePay||'espece'),pro:!!state.caissePro,
     total:Math.round(total*100)/100,ht:Math.round(ht*100)/100,tva:Math.round(tva*100)/100,
     lines:cart.map(function(l){return {said:l.said,pid:l.pid,nom:l.nom,pu:l.pu,qty:l.qty,tva:l.tva};})};
+  if(sale.pro){var cl=state.caisseClient||{};if(!(''+(cl.nom||'')).trim()){toast('Indique le nom du client pro');return;}sale.client={nom:(''+cl.nom).trim(),siret:(''+(cl.siret||'')).trim(),adresse:(''+(cl.adresse||'')).trim(),email:(''+(cl.email||'')).trim()};sale.facture=false;}
   CAISSE.sales.unshift(sale);saveCaisse();
-  state.cart=[];state.caisseRecu='';state.caissePro=false;
+  state.cart=[];state.caisseRecu='';state.caissePro=false;state.caisseClient={};
   renderCaisse();
   toast('Encaissé '+ceur(total)+' ✓');
   caisseDeduct(sale,-1);
@@ -1899,7 +1934,7 @@ function piedsSet(l,v){PIEDS.notes[l]=v;savePieds();}
 
 // ---- MENU ☰ ----
 var siteFilter='all';
-var MENU=[['caisse','Caisse · vente sur place'],['fond','Caisse · comptage espèces'],['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
+var MENU=[['caisse','Caisse · vente sur place'],['facpro','Factures pro · à facturer'],['fond','Caisse · comptage espèces'],['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
 function openMenu(){var b=document.getElementById('menu-body');if(!b)return;b.innerHTML=MENU.map(function(m){return '<div class="ent" onclick="menuGo(\''+m[0]+'\')" style="cursor:pointer"><div class="m"><b>'+m[1]+'</b></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c3cabf" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></div>';}).join('');document.getElementById('menuov').classList.add('show');}
 function closeMenu(){var o=document.getElementById('menuov');if(o)o.classList.remove('show');}
 function menuGo(v){closeMenu();if(v==='__settings__'){openSettings();return;}show(v);}
