@@ -407,7 +407,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.58';
+const APP_VERSION='2026.59';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1448,7 +1448,7 @@ function delTodo(id){var removed=TODO.items.filter(function(x){return x.id===id;
 var CAISSE={sales:[]};
 function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v1')||'null');if(s&&s.sales){CAISSE=s;}}catch(e){}if(!CAISSE.sales)CAISSE.sales=[];if(!state.cart)state.cart=[];if(!state.caissePay)state.caissePay='espece';}
 function saveCaisse(){try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{cloudPush('caisse',CAISSE);}catch(e){}}
-function eur(x){x=(+x)||0;return x.toFixed(2).replace('.',',')+' €';}
+function ceur(x){x=(+x)||0;return x.toFixed(2).replace('.',',')+' €';}
 function caisseTva(){var v=parseFloat(localStorage.getItem('pepins_caisse_tva'));return isNaN(v)?20:v;}
 function caisseCatTTC(){return localStorage.getItem('pepins_caisse_catttc')==='1';}
 function caisseSetTva(v){try{localStorage.setItem('pepins_caisse_tva',String(parseFloat((''+v).replace(',','.'))||0));}catch(e){}renderCaisseSearch();renderCaisseTicket();}
@@ -1471,7 +1471,7 @@ function renderCaisseSearch(){
   var list=(SITE.rows||[]).filter(function(r){return (r.nom||'').toLowerCase().indexOf(q)>=0;}).slice(0,30);
   if(!list.length){box.innerHTML=emptyBox('Aucun produit pour « '+esc(q)+' ».');return;}
   box.innerHTML=list.map(function(r){
-    return '<div class="ent" onclick="caisseAdd('+r.said+')" style="cursor:pointer"><div class="av" style="background:#3f7350;font-size:12px">'+fmt(r.qty)+'</div><div class="m" style="min-width:0"><b>'+esc(r.nom)+'</b><span>'+eur(caisseUnit(r))+' · stock site '+fmt(r.qty)+'</span></div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3f7350" stroke-width="2.6" style="flex:none"><path d="M12 5v14M5 12h14"/></svg></div>';
+    return '<div class="ent" onclick="caisseAdd('+r.said+')" style="cursor:pointer"><div class="av" style="background:#3f7350;font-size:12px">'+fmt(r.qty)+'</div><div class="m" style="min-width:0"><b>'+esc(r.nom)+'</b><span>'+ceur(caisseUnit(r))+' · stock site '+fmt(r.qty)+'</span></div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3f7350" stroke-width="2.6" style="flex:none"><path d="M12 5v14M5 12h14"/></svg></div>';
   }).join('');
 }
 function caisseAdd(said){
@@ -1490,7 +1490,7 @@ function caisseSetPu(lid,v){var l=_line(lid);if(!l)return;v=parseFloat((''+v).re
 function caisseSetNom(lid,v){var l=_line(lid);if(l)l.nom=v;}
 function caisseRemove(lid){state.cart=(state.cart||[]).filter(function(x){return x.lid!==lid;});renderCaisseTicket();}
 function caissePayMode(m){state.caissePay=m;renderCaisseTicket();}
-function caisseRecu(v){state.caisseRecu=v;var el=document.getElementById('caisse-rendu');if(el){var r=(parseFloat((''+v).replace(',','.'))||0)-_cartTotal();el.textContent=((''+v).trim()===''?'—':eur(Math.max(0,r)));}}
+function caisseRecu(v){state.caisseRecu=v;var el=document.getElementById('caisse-rendu');if(el){var r=(parseFloat((''+v).replace(',','.'))||0)-_cartTotal();el.textContent=((''+v).trim()===''?'—':ceur(Math.max(0,r)));}}
 function renderCaisseTicket(){
   var box=document.getElementById('caisse-ticket');var tel=document.getElementById('caisse-total');if(!box||!tel)return;
   var cart=state.cart||[];
@@ -1500,7 +1500,7 @@ function renderCaisseTicket(){
       ? '<input class="inp" value="'+esc(l.nom)+'" style="padding:6px 8px;font-size:14px" placeholder="Désignation" oninput="caisseSetNom(\''+l.lid+'\',this.value)">'
       : '<b style="white-space:normal">'+esc(l.nom)+'</b>';
     return '<div class="ent" style="align-items:center;gap:6px">'
-     +'<div class="m" style="min-width:0">'+nom+'<span>'+eur(l.pu)+' × '+l.qty+' = <b>'+eur((l.pu||0)*(l.qty||0))+'</b></span></div>'
+     +'<div class="m" style="min-width:0">'+nom+'<span>'+ceur(l.pu)+' × '+l.qty+' = <b>'+ceur((l.pu||0)*(l.qty||0))+'</b></span></div>'
      +'<div class="stepper" style="flex:none"><button onclick="caisseStep(\''+l.lid+'\',-1)">&minus;</button><input inputmode="numeric" value="'+l.qty+'" style="width:34px;text-align:center" onchange="caisseSetQty(\''+l.lid+'\',this.value)"><button onclick="caisseStep(\''+l.lid+'\',1)">+</button></div>'
      +'<input inputmode="decimal" value="'+((+l.pu)||0).toFixed(2)+'" title="Prix unitaire TTC" onchange="caisseSetPu(\''+l.lid+'\',this.value)" style="width:62px;text-align:right;padding:8px 6px;border:1px solid #dfe3d8;border-radius:8px">'
      +'<button onclick="caisseRemove(\''+l.lid+'\')" title="Retirer" style="background:none;border:none;color:#c3cabb;font-size:18px;padding:4px 4px;flex:none">&times;</button>'
@@ -1513,12 +1513,12 @@ function renderCaisseTicket(){
   var recu=(state.caisseRecu==null?'':state.caisseRecu);
   var rendu=(pay==='espece'&&(''+recu).trim()!=='')?((parseFloat((''+recu).replace(',','.'))||0)-total):null;
   tel.innerHTML='<div class="card" style="padding:14px">'
-   +'<div class="mrow" style="font-size:21px;font-weight:700"><span>Total</span><b>'+eur(total)+'</b></div>'
-   +'<div class="mrow" style="font-size:12px;color:var(--muted)"><span>dont TVA '+String(caisseTva()).replace('.',',')+'%</span><span><b>'+eur(tva)+'</b> · HT '+eur(ht)+'</span></div>'
+   +'<div class="mrow" style="font-size:21px;font-weight:700"><span>Total</span><b>'+ceur(total)+'</b></div>'
+   +'<div class="mrow" style="font-size:12px;color:var(--muted)"><span>dont TVA '+String(caisseTva()).replace('.',',')+'%</span><span><b>'+ceur(tva)+'</b> · HT '+ceur(ht)+'</span></div>'
    +'<div class="seg" style="margin-top:12px">'+segs+'</div>'
-   +(pay==='espece'?'<div style="display:flex;gap:10px;align-items:center;margin-top:10px"><span style="font-size:13px;color:var(--muted)">Reçu</span><input inputmode="decimal" value="'+esc(''+recu)+'" oninput="caisseRecu(this.value)" placeholder="€" style="width:90px;padding:8px;border:1px solid #dfe3d8;border-radius:8px"><span style="font-size:14px">Rendu : <b id="caisse-rendu">'+(rendu==null?'—':eur(Math.max(0,rendu)))+'</b></span></div>':'')
+   +(pay==='espece'?'<div style="display:flex;gap:10px;align-items:center;margin-top:10px"><span style="font-size:13px;color:var(--muted)">Reçu</span><input inputmode="decimal" value="'+esc(''+recu)+'" oninput="caisseRecu(this.value)" placeholder="€" style="width:90px;padding:8px;border:1px solid #dfe3d8;border-radius:8px"><span style="font-size:14px">Rendu : <b id="caisse-rendu">'+(rendu==null?'—':ceur(Math.max(0,rendu)))+'</b></span></div>':'')
    +'<label class="togglerow" style="margin-top:10px;font-size:13px;gap:8px;cursor:pointer"><input type="checkbox" '+(state.caissePro?'checked':'')+' onchange="state.caissePro=this.checked" style="width:18px;height:18px;accent-color:#3f7350"> Client professionnel</label>'
-   +'<button class="save" style="margin-top:12px" onclick="caisseValidate()">Encaisser '+eur(total)+'</button>'
+   +'<button class="save" style="margin-top:12px" onclick="caisseValidate()">Encaisser '+ceur(total)+'</button>'
    +'</div>';
 }
 function caisseValidate(){
@@ -1532,7 +1532,7 @@ function caisseValidate(){
   CAISSE.sales.unshift(sale);saveCaisse();
   state.cart=[];state.caisseRecu='';state.caissePro=false;
   renderCaisse();
-  toast('Encaissé '+eur(total)+' ✓');
+  toast('Encaissé '+ceur(total)+' ✓');
   caisseDeduct(sale,-1);
 }
 function caisseDeduct(sale,sign){
@@ -1566,19 +1566,19 @@ function renderCaisseDay(){
   var tot=today.reduce(function(s,x){return s+(x.total||0);},0);
   var by={espece:0,cheque:0,cb:0};today.forEach(function(x){by[x.pay]=(by[x.pay]||0)+(x.total||0);});
   var L={espece:'Espèces',cheque:'Chèque',cb:'Carte'};
-  var h='<div class="mrow" style="font-size:18px;font-weight:700"><span>Total du jour · '+today.length+' vente'+(today.length>1?'s':'')+'</span><b>'+eur(tot)+'</b></div>'
-   +'<div class="mrow" style="font-size:13px;color:var(--muted)"><span>Espèces</span><b>'+eur(by.espece)+'</b></div>'
-   +'<div class="mrow" style="font-size:13px;color:var(--muted)"><span>Chèque</span><b>'+eur(by.cheque)+'</b></div>'
-   +'<div class="mrow" style="font-size:13px;color:var(--muted)"><span>Carte</span><b>'+eur(by.cb)+'</b></div>';
+  var h='<div class="mrow" style="font-size:18px;font-weight:700"><span>Total du jour · '+today.length+' vente'+(today.length>1?'s':'')+'</span><b>'+ceur(tot)+'</b></div>'
+   +'<div class="mrow" style="font-size:13px;color:var(--muted)"><span>Espèces</span><b>'+ceur(by.espece)+'</b></div>'
+   +'<div class="mrow" style="font-size:13px;color:var(--muted)"><span>Chèque</span><b>'+ceur(by.cheque)+'</b></div>'
+   +'<div class="mrow" style="font-size:13px;color:var(--muted)"><span>Carte</span><b>'+ceur(by.cb)+'</b></div>';
   h+=today.slice(0,25).map(function(s){var d=new Date(s.ts);var hh=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     var nb=s.lines.reduce(function(a,l){return a+(l.qty||0);},0);
-    return '<div class="ent"><div class="m"><b>'+eur(s.total)+' · '+(L[s.pay]||s.pay)+(s.pro?' · pro':'')+'</b><span>'+hh+' · '+nb+' article'+(nb>1?'s':'')+'</span></div><button onclick="caisseVoid(\''+s.id+'\')" style="background:none;border:none;color:#c38a8a;font-size:12.5px;padding:6px 8px;flex:none">annuler</button></div>';
+    return '<div class="ent"><div class="m"><b>'+ceur(s.total)+' · '+(L[s.pay]||s.pay)+(s.pro?' · pro':'')+'</b><span>'+hh+' · '+nb+' article'+(nb>1?'s':'')+'</span></div><button onclick="caisseVoid(\''+s.id+'\')" style="background:none;border:none;color:#c38a8a;font-size:12.5px;padding:6px 8px;flex:none">annuler</button></div>';
   }).join('');
   box.innerHTML=h;
 }
 function caisseVoid(id){
   var s=(CAISSE.sales||[]).filter(function(x){return x.id===id;})[0];if(!s||s.void)return;
-  if(!window.confirm('Annuler cette vente de '+eur(s.total)+' ? Le stock du site sera remis.'))return;
+  if(!window.confirm('Annuler cette vente de '+ceur(s.total)+' ? Le stock du site sera remis.'))return;
   s.void=true;s.voidTs=Date.now();saveCaisse();renderCaisse();
   caisseDeduct(s,1);
   toast('Vente annulée · stock remis');
