@@ -334,6 +334,20 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <p class="hint" style="margin-top:8px">Outil interne de vente + d&eacute;stockage. Pour l'encaissement r&eacute;glementaire des particuliers (logiciel de caisse certifi&eacute;), &agrave; valider avec ton comptable.</p>
     </section>
 
+    <section class="view" id="v-fond">
+      <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Caisse &middot; esp&egrave;ces</h2>
+      <p class="dsub">Compte les billets et pi&egrave;ces : l'app fait le total et l'&eacute;cart avec ce qui est attendu.</p>
+      <div class="kgrid" id="fond-kpi"></div>
+      <div class="sec" style="margin-top:14px">Comptage</div>
+      <div class="card" id="fond-grid"></div>
+      <div class="card" id="fond-recon" style="margin-top:10px"></div>
+      <button class="save" style="margin-top:12px" onclick="fondSaveCount()">Enregistrer le comptage</button>
+      <button class="ghost" style="margin-top:8px" onclick="fondFromRef()">Repartir du fonds de caisse</button>
+      <button class="ghost" style="margin-top:6px" onclick="fondSetRef()">D&eacute;finir ce comptage comme fonds de caisse</button>
+      <div class="sec" style="margin-top:18px">Historique des comptages</div>
+      <div class="card" id="fond-hist"></div>
+    </section>
+
     <section class="view" id="v-todo">
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Tâches &middot; pépinière</h2>
       <p class="dsub">Ce qu'il y a à faire sur la pépinière. Tu coches &rarr; ça disparaît.</p>
@@ -407,7 +421,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.61';
+const APP_VERSION='2026.62';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -451,9 +465,9 @@ function semis(){return state.records.filter(r=>r.type==='semis');}
 
 function go(v,btn){show(v);document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));const nb=(btn&&btn.dataset&&btn.dataset.v)?btn:navBtn(v);if(nb)nb.classList.add('on');}
 function show(v){try{var _pv=(document.querySelector('.view.on')||{}).id;_pv=_pv?_pv.replace('v-',''):null;if(!window._goingBack&&_pv&&_pv!==v){navHist.push(_pv);if(navHist.length>40)navHist.shift();}window._goingBack=false;}catch(e){}document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));$('#v-'+v).classList.add('on');$('.scroll').scrollTop=0;
-  if(v==='home')renderHome();if(v==='greffes')renderGreffes();if(v==='boutures')renderBoutures();if(v==='semis')renderSemis();if(v==='cmd')renderCmd();if(v==='stats')renderStats();if(v==='plan')renderPlan();if(v==='cat')renderCat();if(v==='semences')renderSemences();if(v==='elevage')renderElevage();if(v==='stock')renderStock();if(v==='todo')renderTodo();if(v==='arrosage')renderArros();if(v==='pieds')renderPieds();if(v==='hormones')renderHormones();if(v==='caisse')renderCaisse();
+  if(v==='home')renderHome();if(v==='greffes')renderGreffes();if(v==='boutures')renderBoutures();if(v==='semis')renderSemis();if(v==='cmd')renderCmd();if(v==='stats')renderStats();if(v==='plan')renderPlan();if(v==='cat')renderCat();if(v==='semences')renderSemences();if(v==='elevage')renderElevage();if(v==='stock')renderStock();if(v==='todo')renderTodo();if(v==='arrosage')renderArros();if(v==='pieds')renderPieds();if(v==='hormones')renderHormones();if(v==='caisse')renderCaisse();if(v==='fond')renderFond();
   // nav highlight for quicklink views
-  if(['stats','plan','cat','semences','semis','elevage','stock','todo','arrosage','pieds','hormones','caisse'].includes(v)){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));}
+  if(['stats','plan','cat','semences','semis','elevage','stock','todo','arrosage','pieds','hormones','caisse','fond'].includes(v)){document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('on'));}
   try{var _fab=document.querySelector('.nav .fab');if(_fab)_fab.style.display='';}catch(e){}}
 
 function seasonByDate(){try{var mo=(new Date()).getMonth()+1;return (mo>=5&&mo<=10)?"été":"hiver";}catch(e){return "hiver";}}
@@ -1446,7 +1460,7 @@ function delTodo(id){var removed=TODO.items.filter(function(x){return x.id===id;
 
 // ---- CAISSE (vente sur place · déstockage auto du site) ----
 var CAISSE={sales:[],tva:5.5,catTTC:false};
-function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v1')||'null');if(s&&s.sales){CAISSE=s;}}catch(e){}if(!CAISSE.sales)CAISSE.sales=[];if(CAISSE.tva==null||isNaN(CAISSE.tva))CAISSE.tva=5.5;if(CAISSE.catTTC==null)CAISSE.catTTC=false;if(!state.cart)state.cart=[];if(!state.caissePay)state.caissePay='espece';}
+function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v1')||'null');if(s&&s.sales){CAISSE=s;}}catch(e){}if(!CAISSE.sales)CAISSE.sales=[];if(CAISSE.tva==null||isNaN(CAISSE.tva))CAISSE.tva=5.5;if(CAISSE.catTTC==null)CAISSE.catTTC=false;if(!CAISSE.fond)CAISSE.fond={denoms:{},total:0,ts:0};if(!CAISSE.counts)CAISSE.counts=[];if(!state.cart)state.cart=[];if(!state.countDraft)state.countDraft={};if(!state.caissePay)state.caissePay='espece';}
 function saveCaisse(){try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{cloudPush('caisse',CAISSE);}catch(e){}}
 function ceur(x){x=(+x)||0;return x.toFixed(2).replace('.',',')+' €';}
 function caisseTva(){return (CAISSE&&CAISSE.tva!=null&&!isNaN(CAISSE.tva))?Number(CAISSE.tva):5.5;}
@@ -1589,6 +1603,69 @@ function caisseVoid(id){
   s.void=true;s.voidTs=Date.now();saveCaisse();renderCaisse();
   caisseDeduct(s,1);
   toast('Vente annulée · stock remis');
+}
+
+// ---- FONDS DE CAISSE + COMPTAGE ESPÈCES ----
+var FOND_DENOMS=[500,200,100,50,20,10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01];
+function fondLabel(v){return v>=1?(v+' €'):(Math.round(v*100)+' c');}
+function _cdk(v){return String(v).replace('.','_');}
+function _sumDenoms(map){var c=0;FOND_DENOMS.forEach(function(v){var q=parseInt((map&&map[v])||0,10)||0;c+=Math.round(v*100)*q;});return c/100;}
+function fondTotal(){return _sumDenoms(CAISSE.fond&&CAISSE.fond.denoms||{});}
+function lastCountTs(){return (CAISSE.counts&&CAISSE.counts[0]&&CAISSE.counts[0].ts)||(CAISSE.fond&&CAISSE.fond.ts)||0;}
+function cashSince(ts){return (CAISSE.sales||[]).filter(function(s){return !s.void&&s.pay==='espece'&&s.ts>(ts||0);}).reduce(function(a,s){return a+(s.total||0);},0);}
+function fondDate(ts){var d=new Date(ts);return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+'h'+('0'+d.getMinutes()).slice(-2);}
+function fondEcartCol(x){return (Math.abs(x)<0.005)?'#3f7350':(x<0?'#b0512c':'#8a6d1f');}
+function fondSetQty(v,q){if(!state.countDraft)state.countDraft={};q=parseInt(q,10);if(isNaN(q)||q<0)q=0;state.countDraft[v]=q;fondRefreshTotals();}
+function fondSetRetrait(v){state.countRetraits=v;fondRefreshTotals();}
+function fondRefreshTotals(){
+  FOND_DENOMS.forEach(function(v){var el=document.getElementById('ct-'+_cdk(v));if(el){var q=parseInt((state.countDraft||{})[v]||0,10)||0;el.textContent=ceur(Math.round(v*100)*q/100);}});
+  var counted=_sumDenoms(state.countDraft||{});
+  var fond=fondTotal();var cash=cashSince(lastCountTs());
+  var retr=parseFloat((''+(state.countRetraits||'')).replace(',','.'))||0;
+  var expected=fond+cash-retr;var ecart=counted-expected;
+  var set=function(id,txt,col){var e=document.getElementById(id);if(e){e.textContent=txt;if(col)e.style.color=col;}};
+  set('count-total',ceur(counted));set('count-cash',ceur(cash));set('count-exp',ceur(expected));
+  set('count-ecart',(ecart>=0?'+':'')+ceur(ecart),fondEcartCol(ecart));
+}
+function renderFond(){
+  if(!state.countDraft)state.countDraft={};
+  var kpi=document.getElementById('fond-kpi');var grid=document.getElementById('fond-grid');var rec=document.getElementById('fond-recon');var hist=document.getElementById('fond-hist');
+  if(!grid)return;
+  var fond=fondTotal();var last=(CAISSE.counts&&CAISSE.counts[0])||null;
+  if(kpi)kpi.innerHTML='<div class="kpi hero"><div class="n">'+ceur(fond)+'</div><div class="l">fonds de caisse</div></div>'
+    +'<div class="kpi"><div class="n">'+(last?ceur(last.total):'—')+'</div><div class="l">dernier comptage'+(last?' · '+fondDate(last.ts):'')+'</div></div>'
+    +'<div class="kpi"><div class="n" style="color:'+fondEcartCol(last?last.ecart:0)+'">'+(last?((last.ecart>=0?'+':'')+ceur(last.ecart)):'—')+'</div><div class="l">dernier écart</div></div>';
+  grid.innerHTML=FOND_DENOMS.map(function(v){var q=parseInt((state.countDraft||{})[v]||0,10)||0;
+    return '<div class="ent" style="gap:8px;align-items:center"><div class="m" style="flex:1"><b>'+fondLabel(v)+'</b></div>'
+     +'<input inputmode="numeric" value="'+q+'" oninput="fondSetQty('+v+',this.value)" style="width:64px;text-align:center;padding:8px;border:1px solid #dfe3d8;border-radius:8px">'
+     +'<b id="ct-'+_cdk(v)+'" style="width:82px;text-align:right;color:var(--muted)">'+ceur(Math.round(v*100)*q/100)+'</b></div>';
+  }).join('')+'<div class="mrow" style="font-size:18px;font-weight:700;margin-top:8px"><span>Total compté</span><b id="count-total">'+ceur(_sumDenoms(state.countDraft||{}))+'</b></div>';
+  var cash=cashSince(lastCountTs());var retr=parseFloat((''+(state.countRetraits||'')).replace(',','.'))||0;
+  var counted=_sumDenoms(state.countDraft||{});var expected=fond+cash-retr;var ecart=counted-expected;
+  if(rec)rec.innerHTML='<div class="mrow"><span>Fonds de caisse (référence)</span><b>'+ceur(fond)+'</b></div>'
+    +'<div class="mrow"><span>Espèces encaissées depuis le dernier comptage</span><b id="count-cash">'+ceur(cash)+'</b></div>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:13px;color:var(--muted)">Retraits / dépôts depuis (banque…)</span><input inputmode="decimal" value="'+esc(''+(state.countRetraits||''))+'" oninput="fondSetRetrait(this.value)" placeholder="€" style="width:90px;padding:8px;border:1px solid #dfe3d8;border-radius:8px"></div>'
+    +'<div class="mrow" style="margin-top:8px"><span>Attendu en caisse</span><b id="count-exp">'+ceur(expected)+'</b></div>'
+    +'<div class="mrow" style="font-size:18px;font-weight:700"><span>Écart</span><b id="count-ecart" style="color:'+fondEcartCol(ecart)+'">'+(ecart>=0?'+':'')+ceur(ecart)+'</b></div>';
+  if(hist)hist.innerHTML=(CAISSE.counts&&CAISSE.counts.length)?CAISSE.counts.slice(0,40).map(function(c){
+    return '<div class="ent"><div class="m"><b>'+ceur(c.total)+'</b><span>'+fondDate(c.ts)+' · attendu '+ceur(c.expected)+'</span></div><b style="color:'+fondEcartCol(c.ecart)+';flex:none">'+(c.ecart>=0?'+':'')+ceur(c.ecart)+'</b></div>';
+  }).join(''):emptyBox('Aucun comptage enregistré.');
+}
+function fondFromRef(){state.countDraft=Object.assign({},(CAISSE.fond&&CAISSE.fond.denoms)||{});renderFond();}
+function fondSaveCount(){
+  var counted=_sumDenoms(state.countDraft||{});
+  var fond=fondTotal();var cash=cashSince(lastCountTs());
+  var retr=parseFloat((''+(state.countRetraits||'')).replace(',','.'))||0;
+  var expected=fond+cash-retr;var ecart=Math.round((counted-expected)*100)/100;
+  var rec={id:uid(),ts:Date.now(),total:Math.round(counted*100)/100,denoms:Object.assign({},state.countDraft||{}),cashSales:Math.round(cash*100)/100,retraits:retr,expected:Math.round(expected*100)/100,ecart:ecart};
+  CAISSE.counts=CAISSE.counts||[];CAISSE.counts.unshift(rec);saveCaisse();
+  state.countDraft={};state.countRetraits='';renderFond();
+  toast('Comptage enregistré · écart '+(ecart>=0?'+':'')+ceur(ecart));
+}
+function fondSetRef(){
+  if(!window.confirm('Définir le comptage actuel comme fonds de caisse de référence ?'))return;
+  CAISSE.fond={denoms:Object.assign({},state.countDraft||{}),total:_sumDenoms(state.countDraft||{}),ts:Date.now()};saveCaisse();renderFond();
+  toast('Fonds de caisse défini · '+ceur(CAISSE.fond.total));
 }
 
 // ---- COMMANDE PORTE-GREFFES (éditable, coché « commandé » par année, sauvegardé + synchronisé) ----
@@ -1822,7 +1899,7 @@ function piedsSet(l,v){PIEDS.notes[l]=v;savePieds();}
 
 // ---- MENU ☰ ----
 var siteFilter='all';
-var MENU=[['caisse','Caisse · vente sur place'],['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
+var MENU=[['caisse','Caisse · vente sur place'],['fond','Caisse · comptage espèces'],['semis','Semis · production (semé → levé)'],['cmd','Commande · porte-greffes'],['semences','Commande · semences'],['elevage','Stock global (réserve)'],['stock','Stock (site)'],['arrosage','Arrosages'],['pieds','Plan pieds-mères'],['todo','Tâches à faire'],['plan','Planches de culture'],['stats','Statistiques'],['hormones','Bouturage · meilleurs réglages'],['__settings__','Réglages / export']];
 function openMenu(){var b=document.getElementById('menu-body');if(!b)return;b.innerHTML=MENU.map(function(m){return '<div class="ent" onclick="menuGo(\''+m[0]+'\')" style="cursor:pointer"><div class="m"><b>'+m[1]+'</b></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c3cabf" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></div>';}).join('');document.getElementById('menuov').classList.add('show');}
 function closeMenu(){var o=document.getElementById('menuov');if(o)o.classList.remove('show');}
 function menuGo(v){closeMenu();if(v==='__settings__'){openSettings();return;}show(v);}
