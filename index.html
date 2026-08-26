@@ -407,7 +407,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.60';
+const APP_VERSION='2026.61';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1451,11 +1451,12 @@ function saveCaisse(){try{localStorage.setItem('pepins_caisse_v1',JSON.stringify
 function ceur(x){x=(+x)||0;return x.toFixed(2).replace('.',',')+' €';}
 function caisseTva(){return (CAISSE&&CAISSE.tva!=null&&!isNaN(CAISSE.tva))?Number(CAISSE.tva):5.5;}
 function caisseCatTTC(){return !!(CAISSE&&CAISSE.catTTC);}
-function caisseSetTva(v){var n=parseFloat((''+v).replace(',','.'));if(isNaN(n)||n<0)n=0;CAISSE.tva=n;saveCaisse();renderCaisseSearch();renderCaisseTicket();}
+function caisseSetTva(v){var n=parseFloat((''+v).replace(',','.'));if(isNaN(n)||n<0)n=0;CAISSE.tva=n;saveCaisse();(state.cart||[]).forEach(function(l){if(!l.free)l.tva=n;});renderCaisseSearch();renderCaisseTicket();}
 function caisseSetCat(v){CAISSE.catTTC=(v==='ttc');saveCaisse();renderCaisseSearch();renderCaisseTicket();}
 function caisseUnit(row){var p=(+row.prix)||0;if(!caisseCatTTC())p=p*(1+caisseTva()/100);return Math.round(p*100)/100;}
 function _line(lid){return (state.cart||[]).filter(function(x){return x.lid===lid;})[0];}
 function _cartTotal(){return (state.cart||[]).reduce(function(s,l){return s+(((+l.pu)||0)*((+l.qty)||0));},0);}
+function _cartTva(){return (state.cart||[]).reduce(function(s,l){var t=((+l.pu)||0)*((+l.qty)||0);var r=((+l.tva)||0)/100;return s+(t-(r>0?t/(1+r):t));},0);}
 function renderCaisse(){
   if(!state.cart)state.cart=[];
   if(!SITE.loaded&&!SITE.loading){try{loadSite(false);}catch(e){}}
@@ -1478,12 +1479,13 @@ function caisseAdd(said){
   if(!state.cart)state.cart=[];
   var row=SITE.bySaid&&SITE.bySaid[said];if(!row)return;
   var ex=state.cart.filter(function(l){return l.said===said;})[0];
-  if(ex){ex.qty++;}else{state.cart.push({lid:uid(),said:said,pid:row.id,nom:row.nom,pu:caisseUnit(row),qty:1});}
+  if(ex){ex.qty++;}else{state.cart.push({lid:uid(),said:said,pid:row.id,nom:row.nom,pu:caisseUnit(row),qty:1,tva:caisseTva()});}
   var qi=document.getElementById('caisse-q');if(qi){qi.value='';}
   renderCaisseSearch();renderCaisseTicket();
   if(qi){try{qi.focus();}catch(e){}}
 }
-function caisseAddFree(){if(!state.cart)state.cart=[];state.cart.push({lid:uid(),said:null,pid:null,nom:'',pu:0,qty:1,free:true});renderCaisseTicket();}
+function caisseAddFree(){if(!state.cart)state.cart=[];state.cart.push({lid:uid(),said:null,pid:null,nom:'',pu:0,qty:1,free:true,tva:20});renderCaisseTicket();}
+function caisseSetLineTva(lid,v){var l=_line(lid);if(!l)return;var n=parseFloat((''+v).replace(',','.'));if(isNaN(n)||n<0)n=0;l.tva=n;renderCaisseTicket();}
 function caisseStep(lid,d){var l=_line(lid);if(!l)return;caisseSetQty(lid,(l.qty||0)+d);}
 function caisseSetQty(lid,v){var l=_line(lid);if(!l)return;v=parseInt(v,10);if(isNaN(v)||v<0)v=0;l.qty=v;if(v===0)state.cart=state.cart.filter(function(x){return x.lid!==lid;});renderCaisseTicket();}
 function caisseSetPu(lid,v){var l=_line(lid);if(!l)return;v=parseFloat((''+v).replace(',','.'));if(isNaN(v)||v<0)v=0;l.pu=Math.round(v*100)/100;renderCaisseTicket();}
@@ -1496,17 +1498,22 @@ function renderCaisseTicket(){
   var cart=state.cart||[];
   if(!cart.length){box.innerHTML=emptyBox('Ticket vide. Ajoute des produits ci-dessus.');tel.innerHTML='';return;}
   box.innerHTML=cart.map(function(l){
-    var nom=l.free
-      ? '<input class="inp" value="'+esc(l.nom)+'" style="padding:6px 8px;font-size:14px" placeholder="Désignation" oninput="caisseSetNom(\''+l.lid+'\',this.value)">'
-      : '<b style="white-space:normal">'+esc(l.nom)+'</b>';
+    var lt=((+l.pu)||0)*((+l.qty)||0);var lr=((+l.tva)||0)/100;var lht=lr>0?lt/(1+lr):lt;
+    var nom;
+    if(l.free){
+      nom='<input class="inp" value="'+esc(l.nom)+'" style="padding:6px 8px;font-size:14px" placeholder="Désignation (ex. tuteur bambou)" oninput="caisseSetNom(\''+l.lid+'\',this.value)">'
+        +'<div style="display:flex;align-items:center;gap:6px;margin-top:5px;font-size:12px;color:var(--muted)">TVA <select onchange="caisseSetLineTva(\''+l.lid+'\',this.value)" style="padding:4px 6px;border:1px solid #dfe3d8;border-radius:6px;background:#fff">'
+        +[20,10,5.5,0].map(function(rr){return '<option value="'+rr+'"'+(((+l.tva)||0)===rr?' selected':'')+'>'+String(rr).replace('.',',')+'</option>';}).join('')
+        +'</select> %</div>';
+    } else { nom='<b style="white-space:normal">'+esc(l.nom)+'</b>'; }
     return '<div class="ent" style="align-items:center;gap:6px">'
-     +'<div class="m" style="min-width:0">'+nom+'<span>'+ceur(l.pu)+' × '+l.qty+' = <b>'+ceur((l.pu||0)*(l.qty||0))+'</b></span></div>'
+     +'<div class="m" style="min-width:0">'+nom+'<span>'+ceur(l.pu)+' × '+l.qty+' = <b>'+ceur(lt)+'</b> · HT '+ceur(lht)+'</span></div>'
      +'<div class="stepper" style="flex:none"><button onclick="caisseStep(\''+l.lid+'\',-1)">&minus;</button><input inputmode="numeric" value="'+l.qty+'" style="width:34px;text-align:center" onchange="caisseSetQty(\''+l.lid+'\',this.value)"><button onclick="caisseStep(\''+l.lid+'\',1)">+</button></div>'
      +'<input inputmode="decimal" value="'+((+l.pu)||0).toFixed(2)+'" title="Prix unitaire TTC" onchange="caisseSetPu(\''+l.lid+'\',this.value)" style="width:62px;text-align:right;padding:8px 6px;border:1px solid #dfe3d8;border-radius:8px">'
      +'<button onclick="caisseRemove(\''+l.lid+'\')" title="Retirer" style="background:none;border:none;color:#c3cabb;font-size:18px;padding:4px 4px;flex:none">&times;</button>'
      +'</div>';
   }).join('');
-  var total=_cartTotal();var r=caisseTva()/100;var ht=r>0?total/(1+r):total;var tva=total-ht;
+  var total=_cartTotal();var tva=_cartTva();var ht=total-tva;
   var pay=state.caissePay||'espece';
   var modes=[['espece','Espèces'],['cheque','Chèque'],['cb','Carte']];
   var segs=modes.map(function(m){return '<button class="'+(pay===m[0]?'on':'')+'" onclick="caissePayMode(\''+m[0]+'\')">'+m[1]+'</button>';}).join('');
@@ -1514,7 +1521,7 @@ function renderCaisseTicket(){
   var rendu=(pay==='espece'&&(''+recu).trim()!=='')?((parseFloat((''+recu).replace(',','.'))||0)-total):null;
   tel.innerHTML='<div class="card" style="padding:14px">'
    +'<div class="mrow" style="font-size:21px;font-weight:700"><span>Total</span><b>'+ceur(total)+'</b></div>'
-   +'<div class="mrow" style="font-size:12px;color:var(--muted)"><span>dont TVA '+String(caisseTva()).replace('.',',')+'%</span><span><b>'+ceur(tva)+'</b> · HT '+ceur(ht)+'</span></div>'
+   +'<div class="mrow" style="font-size:12px;color:var(--muted)"><span>dont TVA</span><span><b>'+ceur(tva)+'</b> · HT '+ceur(ht)+'</span></div>'
    +'<div class="seg" style="margin-top:12px">'+segs+'</div>'
    +(pay==='espece'?'<div style="display:flex;gap:10px;align-items:center;margin-top:10px"><span style="font-size:13px;color:var(--muted)">Reçu</span><input inputmode="decimal" value="'+esc(''+recu)+'" oninput="caisseRecu(this.value)" placeholder="€" style="width:90px;padding:8px;border:1px solid #dfe3d8;border-radius:8px"><span style="font-size:14px">Rendu : <b id="caisse-rendu">'+(rendu==null?'—':ceur(Math.max(0,rendu)))+'</b></span></div>':'')
    +'<label class="togglerow" style="margin-top:10px;font-size:13px;gap:8px;cursor:pointer"><input type="checkbox" '+(state.caissePro?'checked':'')+' onchange="state.caissePro=this.checked" style="width:18px;height:18px;accent-color:#3f7350"> Client professionnel</label>'
@@ -1525,10 +1532,10 @@ function caisseValidate(){
   var cart=(state.cart||[]).filter(function(l){return (l.qty||0)>0;});
   if(!cart.length){toast('Ticket vide');return;}
   var total=_cartTotal();if(total<=0){toast('Total à zéro');return;}
-  var r=caisseTva()/100;var ht=r>0?total/(1+r):total;var tva=total-ht;
+  var tva=_cartTva();var ht=total-tva;
   var sale={id:uid(),ts:Date.now(),pay:(state.caissePay||'espece'),pro:!!state.caissePro,
-    total:Math.round(total*100)/100,ht:Math.round(ht*100)/100,tva:Math.round(tva*100)/100,tvaRate:caisseTva(),
-    lines:cart.map(function(l){return {said:l.said,pid:l.pid,nom:l.nom,pu:l.pu,qty:l.qty};})};
+    total:Math.round(total*100)/100,ht:Math.round(ht*100)/100,tva:Math.round(tva*100)/100,
+    lines:cart.map(function(l){return {said:l.said,pid:l.pid,nom:l.nom,pu:l.pu,qty:l.qty,tva:l.tva};})};
   CAISSE.sales.unshift(sale);saveCaisse();
   state.cart=[];state.caisseRecu='';state.caissePro=false;
   renderCaisse();
