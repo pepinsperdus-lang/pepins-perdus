@@ -429,7 +429,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.65';
+const APP_VERSION='2026.66';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1411,7 +1411,7 @@ function renderSite(){
     var pend=(_stockBatch&&SITEPEND[r.said]!=null)?SITEPEND[r.said]:null;
     return '<div class="ent"'+(pend!=null?' style="background:#fff7e0"':'')+'>'
      +'<div class="av" style="background:'+c+';font-size:12px">'+(isBig?'∞':fmt(r.qty))+'</div>'
-     +'<div class="m" style="min-width:0"><b style="white-space:normal;line-height:1.25">'+esc(r.nom)+'</b><span>'+(isAdmin()&&r.prix?r.prix.toFixed(2)+' € · ':'')+(pend!=null?'<b style="color:#8a6d1f">'+r.qty+' → '+pend+'</b> · en attente':'site')+'</span></div>'
+     +'<div class="m" style="min-width:0"><b style="white-space:normal;line-height:1.25">'+esc(r.nom)+'</b><span>'+(isAdmin()&&r.prix?ceur(r.prix*(1+caisseTva()/100))+' TTC · ':'')+(pend!=null?'<b style="color:#8a6d1f">'+r.qty+' → '+pend+'</b> · en attente':'site')+'</span></div>'
      +'<div class="stepper" style="flex:none;margin-left:auto"><button onclick="siteStep('+r.said+',-1)">&minus;</button>'
      +'<input id="sq-'+r.said+'" inputmode="numeric" value="'+(pend!=null?pend:r.qty)+'" style="width:50px;text-align:center" oninput="siteDirty('+r.said+')"><button onclick="siteStep('+r.said+',1)">+</button></div>'
      +'<button id="sw-'+r.said+'" onclick="siteWrite('+r.said+')" title="Envoyer au site" style="'+btnStyle+'">✓</button>'
