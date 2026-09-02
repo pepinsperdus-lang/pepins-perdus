@@ -360,6 +360,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Tâches &middot; pépinière</h2>
       <p class="dsub">Ce qu'il y a à faire sur la pépinière. Tu coches &rarr; ça disparaît.</p>
       <div class="togglerow"><span id="todo-count" style="color:var(--muted);font-weight:600"></span></div>
+      <div class="seg" id="todo-tabs" style="margin:6px 0 8px"></div>
       <div style="display:flex;gap:8px;margin:8px 0 12px">
         <input class="inp" id="todo-new" style="flex:1" placeholder="Nouvelle tâche…" onkeydown="if(event.key==='Enter')addTodo()">
         <button class="save" onclick="addTodo()" style="width:auto;margin:0;padding:0 18px;flex:none">&#10133; Ajouter</button>
@@ -429,7 +430,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.66';
+const APP_VERSION='2026.67';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1452,9 +1453,12 @@ var TODO={items:[]};
 function loadTodo(){try{var s=JSON.parse(localStorage.getItem('pepins_todo_v1')||'null');if(s&&s.items){TODO=s;return;}}catch(e){}TODO={items:[]};}
 function saveTodo(){try{localStorage.setItem('pepins_todo_v1',JSON.stringify(TODO));}catch(e){}cloudPush('todo',TODO);}
 function renderTodo(){
-  var _sortT=function(arr){return arr.slice().sort(function(a,b){return (b.o||0)-(a.o||0)||(a.id<b.id?-1:(a.id>b.id?1:0));});}; // ordre stable identique sur tous les appareils
-  var open=_sortT(TODO.items.filter(function(t){return !t.done;}));
-  var done=_sortT(TODO.items.filter(function(t){return t.done;}));
+  var tab=state.todoTab||'equipe';
+  var _sortT=function(arr){return arr.slice().sort(function(a,b){return ((b.fav?1:0)-(a.fav?1:0))||(b.o||0)-(a.o||0)||(a.id<b.id?-1:(a.id>b.id?1:0));});}; // favoris d'abord, puis ordre stable
+  var items=(TODO.items||[]).filter(function(t){return tab==='lancelot'?(t.who==='lancelot'):(t.who!=='lancelot');});
+  var open=_sortT(items.filter(function(t){return !t.done;}));
+  var done=_sortT(items.filter(function(t){return t.done;}));
+  var tabsEl=document.getElementById('todo-tabs');if(tabsEl)tabsEl.innerHTML=[['equipe','Équipe'],['lancelot','Lancelot']].map(function(f){return '<button class="'+(tab===f[0]?'on':'')+'" onclick="setTodoTab(\''+f[0]+'\')">'+f[1]+'</button>';}).join('');
   var el=document.getElementById('todo-count');if(el)el.textContent=open.length?open.length+' tâche'+(open.length>1?'s':'')+' à faire':'Rien à faire 🎉';
   var list=document.getElementById('todolist');if(!list)return;
   var h='';
@@ -1462,9 +1466,9 @@ function renderTodo(){
     var mid=(state.todoEdit===t.id)
       ? '<input class="inp" id="todo-edit" value="'+esc(t.txt)+'" style="font-size:15px;padding:8px 10px" onkeydown="if(event.key===\'Enter\')saveEditTodo(\''+t.id+'\');if(event.key===\'Escape\')cancelEditTodo()" onblur="saveEditTodo(\''+t.id+'\')">'
       : '<b style="font-weight:600;white-space:normal;cursor:text" onclick="startEditTodo(\''+t.id+'\')">'+esc(t.txt)+'</b>';
-    return '<div class="ent"><button onclick="toggleTodo(\''+t.id+'\')" title="Fait" style="width:30px;height:30px;border-radius:8px;flex:none;border:2px solid #cbd3c6;background:#fff"></button><div class="m">'+mid+'</div><button onclick="delTodo(\''+t.id+'\')" title="Supprimer" style="background:none;border:none;color:#c3cabb;font-size:18px;padding:8px 10px">&times;</button></div>';
+    return '<div class="ent"'+(t.fav?' style="background:#fffceb"':'')+'><button onclick="toggleTodo(\''+t.id+'\')" title="Fait" style="width:30px;height:30px;border-radius:8px;flex:none;border:2px solid #cbd3c6;background:#fff"></button><div class="m">'+mid+'</div><button onclick="toggleFavTodo(\''+t.id+'\')" title="Favori" style="background:none;border:none;font-size:19px;padding:6px 6px;flex:none;line-height:1;color:'+(t.fav?'#e0a53a':'#cdd3c8')+'">'+(t.fav?'★':'☆')+'</button><button onclick="delTodo(\''+t.id+'\')" title="Supprimer" style="background:none;border:none;color:#c3cabb;font-size:18px;padding:8px 8px">&times;</button></div>';
   }).join('');}
-  else if(!done.length){h+=emptyBox('Ajoute ta première tâche ci-dessous.');}
+  else if(!done.length){h+=emptyBox(tab==='lancelot'?'Aucune tâche perso. Ajoute-en une ci-dessous.':'Ajoute ta première tâche ci-dessous.');}
   if(done.length){var sd=!!state.todoShowDone;
     h+='<div class="famh" style="cursor:pointer;margin-top:10px" onclick="state.todoShowDone=!state.todoShowDone;renderTodo()"><span style="color:#4b7f52">'+(sd?'▾':'▸')+' Terminées</span><em>'+done.length+'</em></div>';
     if(sd){h+=done.map(function(t){
@@ -1474,7 +1478,9 @@ function renderTodo(){
   list.innerHTML=h;
 }
 function untoggleTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.done=false;saveTodo();renderTodo();toast('Remise à faire');}
-function addTodo(){var i=document.getElementById('todo-new');var v=(i.value||'').trim();if(!v)return;TODO.items.unshift({id:uid(),txt:v,done:false,o:Date.now()});i.value='';saveTodo();renderTodo();}
+function addTodo(){var i=document.getElementById('todo-new');var v=(i.value||'').trim();if(!v)return;var who=(state.todoTab==='lancelot')?'lancelot':'';TODO.items.unshift({id:uid(),txt:v,done:false,o:Date.now(),fav:false,who:who});i.value='';saveTodo();renderTodo();}
+function setTodoTab(t){state.todoTab=t;state.todoEdit=null;renderTodo();}
+function toggleFavTodo(id){var t=TODO.items.filter(function(x){return x.id===id;})[0];if(!t)return;t.fav=!t.fav;saveTodo();renderTodo();}
 function startEditTodo(id){state.todoEdit=id;renderTodo();setTimeout(function(){var e=document.getElementById('todo-edit');if(e){e.focus();try{e.select();}catch(_){}}},40);}
 function cancelEditTodo(){state.todoEdit=null;renderTodo();}
 function saveEditTodo(id){if(state.todoEdit!==id)return;var e=document.getElementById('todo-edit');var v=e?(e.value||'').trim():'';var t=TODO.items.filter(function(x){return x.id===id;})[0];state.todoEdit=null;if(t&&v&&v!==t.txt){t.txt=v;saveTodo();}renderTodo();}
