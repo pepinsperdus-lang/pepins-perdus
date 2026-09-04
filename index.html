@@ -151,7 +151,10 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
   </div>
   <div class="scroll">
     <section class="view on" id="v-home">
-      <div class="kgrid" id="kpis"></div>
+      <div class="sec" style="margin-top:2px">Explorer</div>
+      <div class="qgrid" id="quick"></div>
+
+      <div class="kgrid" id="kpis" style="margin-top:18px"></div>
 
       <div class="sec" style="margin-top:18px">Production &middot; saison 2026<a style="cursor:pointer" onclick="show('stats')">D&eacute;tail &rsaquo;</a></div>
       <div class="card" id="flux"></div>
@@ -161,9 +164,6 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <div class="sec" style="margin-top:20px">&Agrave; faire</div>
       <button class="cta" onclick="go('cmd',navBtn('cmd'))"><div class="big" id="cta-n">&mdash;</div><div style="flex:1"><div class="t1">Porte-greffes</div><div class="t2" id="cta-t">&agrave; commander</div></div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></button>
       <button class="cta" style="background:linear-gradient(135deg,#4b7f52,#2c5c3d);box-shadow:0 12px 26px rgba(43,92,61,.3);margin-top:10px" onclick="show('semences')"><div class="big" id="sem-cta-n">&mdash;</div><div style="flex:1"><div class="t1">Semences</div><div class="t2" id="sem-cta-t">&agrave; acheter cette ann&eacute;e</div></div><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M9 6l6 6-6 6"/></svg></button>
-
-      <div class="sec" style="margin-top:20px">Explorer</div>
-      <div class="qgrid" id="quick"></div>
 
       <div class="sec" style="margin-top:20px">Performance commerciale</div>
       <div class="card" id="commercial" style="padding:15px 16px">
@@ -430,7 +430,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.67';
+const APP_VERSION='2026.68';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -538,9 +538,9 @@ function renderHome(){
    admin:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
   };
   var Q=[
-   {i:'semis',l:'Semis',r:'semis'},{i:'cmd',l:'Cmd porte-greffes',r:'cmd'},{i:'semences',l:'Semences',r:'semences'},
-   {i:'elevage',l:'Stock global',r:'elevage'},{i:'stock',l:'Stock site',r:'stock'},{i:'arrosage',l:'Arrosages',r:'arrosage'},
-   {i:'pieds',l:'Pieds-mères',r:'pieds'},{i:'todo',l:'Tâches',r:'todo'},{i:'plan',l:'Planches',r:'plan'},
+   {i:'todo',l:'Tâches',r:'todo'},{i:'pieds',l:'Pieds-mères',r:'pieds'},{i:'stock',l:'Stock site',r:'stock'},
+   {i:'elevage',l:'Stock global',r:'elevage'},{i:'semis',l:'Semis',r:'semis'},{i:'cmd',l:'Cmd porte-greffes',r:'cmd'},
+   {i:'semences',l:'Semences',r:'semences'},{i:'arrosage',l:'Arrosages',r:'arrosage'},{i:'plan',l:'Planches',r:'plan'},
    {i:'stats',l:'Stats',r:'stats'},{i:'hormones',l:'Réglages bouture',r:'hormones'},{i:'settings',l:'Réglages',r:'__settings__'}
   ];
   $('#quick').innerHTML=Q.map(function(q){
