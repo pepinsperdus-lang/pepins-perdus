@@ -360,12 +360,14 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
       <div id="caisse-sub-comptage" hidden>
         <p class="dsub">Compte les billets et pi&egrave;ces : l'app calcule le total, ce qu'il faut retirer, ce qui reste en fond de caisse et l'&eacute;cart.</p>
         <div class="kgrid" id="fond-kpi"></div>
-        <div class="sec" style="margin-top:14px">Comptage (billets &amp; pi&egrave;ces)</div>
+        <div class="sec" style="margin-top:14px">Fond de caisse</div>
+        <div class="card" id="fond-set"></div>
+        <div class="sec" style="margin-top:16px">Recettes depuis le dernier comptage</div>
+        <div class="card" id="fond-recettes"></div>
+        <div class="sec" style="margin-top:16px">Comptage des esp&egrave;ces (billets &amp; pi&egrave;ces)</div>
         <div class="card" id="fond-grid"></div>
         <div class="card" id="fond-recon" style="margin-top:10px"></div>
         <button class="save" style="margin-top:12px" onclick="fondSaveCount()">Enregistrer le comptage</button>
-        <button class="ghost" style="margin-top:8px" onclick="fondFromRef()">Repartir du fonds de caisse</button>
-        <button class="ghost" style="margin-top:6px" onclick="fondSetRef()">D&eacute;finir ce comptage comme fonds de caisse</button>
         <div class="sec" style="margin-top:18px">Historique des comptages</div>
         <div class="card" id="fond-hist"></div>
       </div>
@@ -445,7 +447,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.73';
+const APP_VERSION='2026.74';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1785,7 +1787,9 @@ var FOND_DENOMS=[500,200,100,50,20,10,5,2,1,0.5,0.2,0.1,0.05,0.02,0.01];
 function fondLabel(v){return v>=1?(v+' €'):(Math.round(v*100)+' c');}
 function _cdk(v){return String(v).replace('.','_');}
 function _sumDenoms(map){var c=0;FOND_DENOMS.forEach(function(v){var q=parseInt((map&&map[v])||0,10)||0;c+=Math.round(v*100)*q;});return c/100;}
-function fondTotal(){return _sumDenoms(CAISSE.fond&&CAISSE.fond.denoms||{});}
+function fondTotal(){var f=CAISSE.fond||{};var d=_sumDenoms(f.denoms||{});if(d>0)return d;return Math.round(((+f.total)||0)*100)/100;}
+function takingsSince(ts){var o={espece:0,cheque:0,cb:0};(CAISSE.sales||[]).forEach(function(s){if(s.void||s.ts<=(ts||0))return;var m=_saleModes(s);o.espece+=m.espece;o.cheque+=m.cheque;o.cb+=m.cb;});return o;}
+function fondSetAmount(v){var n=parseFloat((''+v).replace(',','.'));if(isNaN(n)||n<0){toast('Montant invalide');return;}CAISSE.fond={total:Math.round(n*100)/100,denoms:{},ts:Date.now()};saveCaisse();renderFond();toast('Fond de caisse défini : '+ceur(n));}
 function lastCountTs(){return (CAISSE.counts&&CAISSE.counts[0]&&CAISSE.counts[0].ts)||(CAISSE.fond&&CAISSE.fond.ts)||0;}
 function cashSince(ts){return (CAISSE.sales||[]).filter(function(s){return !s.void&&s.ts>(ts||0);}).reduce(function(a,s){return a+_saleCash(s);},0);}
 function fondDate(ts){var d=new Date(ts);return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+' '+('0'+d.getHours()).slice(-2)+'h'+('0'+d.getMinutes()).slice(-2);}
@@ -1806,23 +1810,32 @@ function fondRefreshTotals(){
 function renderFond(){
   if(!state.countDraft)state.countDraft={};
   var kpi=document.getElementById('fond-kpi');var grid=document.getElementById('fond-grid');var rec=document.getElementById('fond-recon');var hist=document.getElementById('fond-hist');
+  var setbox=document.getElementById('fond-set');var recbox=document.getElementById('fond-recettes');
   if(!grid)return;
   var fond=fondTotal();var last=(CAISSE.counts&&CAISSE.counts[0])||null;
-  if(kpi)kpi.innerHTML='<div class="kpi hero"><div class="n">'+ceur(fond)+'</div><div class="l">fonds de caisse</div></div>'
+  if(kpi)kpi.innerHTML='<div class="kpi hero"><div class="n">'+ceur(fond)+'</div><div class="l">fond de caisse</div></div>'
     +'<div class="kpi"><div class="n">'+(last?ceur(last.total):'—')+'</div><div class="l">dernier comptage'+(last?' · '+fondDate(last.ts):'')+'</div></div>'
     +'<div class="kpi"><div class="n" style="color:'+fondEcartCol(last?last.ecart:0)+'">'+(last?((last.ecart>=0?'+':'')+ceur(last.ecart)):'—')+'</div><div class="l">dernier écart</div></div>';
+  if(setbox)setbox.innerHTML='<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;line-height:1.45">La monnaie qui doit toujours rester dans la caisse (ta base de d&eacute;part, retrouv&eacute;e chaque matin). Tape le montant et enregistre.</p>'
+    +'<div style="display:flex;gap:8px;align-items:center"><span style="font-size:14px;flex:none">Montant du fond</span><input id="fond-amount" inputmode="decimal" value="'+esc(fond?(''+fond).replace('.',','):'')+'" placeholder="ex. 100" style="flex:1;min-width:0;padding:9px;border:1px solid #dfe3d8;border-radius:8px;text-align:right">&nbsp;€<button class="save" style="margin:0;width:auto;padding:10px 14px" onclick="fondSetAmount(document.getElementById(\'fond-amount\').value)">Enregistrer</button></div>';
+  var tk=takingsSince(lastCountTs());
+  if(recbox)recbox.innerHTML='<div class="mrow"><span>Esp&egrave;ces</span><b>'+ceur(tk.espece)+'</b></div>'
+    +'<div class="mrow"><span>Carte (CB)</span><b>'+ceur(tk.cb)+'</b></div>'
+    +'<div class="mrow"><span>Ch&egrave;que</span><b>'+ceur(tk.cheque)+'</b></div>'
+    +'<div class="mrow" style="font-size:16px;font-weight:700;border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>Total recettes</span><b>'+ceur(tk.espece+tk.cb+tk.cheque)+'</b></div>'
+    +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(last?('Depuis le dernier comptage du '+fondDate(last.ts)+'.'):'Depuis le d&eacute;but (aucun comptage enregistr&eacute;).')+'</div>';
   grid.innerHTML=FOND_DENOMS.map(function(v){var q=parseInt((state.countDraft||{})[v]||0,10)||0;
     return '<div class="ent" style="gap:8px;align-items:center"><div class="m" style="flex:1"><b>'+fondLabel(v)+'</b></div>'
      +'<input inputmode="numeric" value="'+q+'" oninput="fondSetQty('+v+',this.value)" style="width:64px;text-align:center;padding:8px;border:1px solid #dfe3d8;border-radius:8px">'
      +'<b id="ct-'+_cdk(v)+'" style="width:82px;text-align:right;color:var(--muted)">'+ceur(Math.round(v*100)*q/100)+'</b></div>';
   }).join('')+'<div class="mrow" style="font-size:18px;font-weight:700;margin-top:8px"><span>Total compté</span><b id="count-total">'+ceur(_sumDenoms(state.countDraft||{}))+'</b></div>';
-  var cash=cashSince(lastCountTs());var retr=parseFloat((''+(state.countRetraits||'')).replace(',','.'))||0;
+  var cash=tk.espece;var retr=parseFloat((''+(state.countRetraits||'')).replace(',','.'))||0;
   var counted=_sumDenoms(state.countDraft||{});var expected=fond+cash-retr;var ecart=counted-expected;
-  if(rec)rec.innerHTML='<div class="mrow"><span>Fonds de caisse (référence)</span><b>'+ceur(fond)+'</b></div>'
-    +'<div class="mrow"><span>Espèces encaissées depuis le dernier comptage</span><b id="count-cash">'+ceur(cash)+'</b></div>'
-    +'<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:13px;color:var(--muted)">Retraits / dépôts depuis (banque…)</span><input inputmode="decimal" value="'+esc(''+(state.countRetraits||''))+'" oninput="fondSetRetrait(this.value)" placeholder="€" style="width:90px;padding:8px;border:1px solid #dfe3d8;border-radius:8px"></div>'
-    +'<div class="mrow" style="margin-top:8px"><span>Attendu en caisse</span><b id="count-exp">'+ceur(expected)+'</b></div>'
-    +'<div class="mrow" style="font-size:18px;font-weight:700"><span>Écart</span><b id="count-ecart" style="color:'+fondEcartCol(ecart)+'">'+(ecart>=0?'+':'')+ceur(ecart)+'</b></div>'
+  if(rec)rec.innerHTML='<div class="mrow"><span>Fond de caisse (départ)</span><b>'+ceur(fond)+'</b></div>'
+    +'<div class="mrow"><span>+ Recette espèces</span><b id="count-cash">'+ceur(cash)+'</b></div>'
+    +'<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><span style="flex:1;font-size:13px;color:var(--muted)">&minus; Sorties d\'espèces déjà faites (dépôt banque, achat…)</span><input inputmode="decimal" value="'+esc(''+(state.countRetraits||''))+'" oninput="fondSetRetrait(this.value)" placeholder="€" style="width:90px;padding:8px;border:1px solid #dfe3d8;border-radius:8px"></div>'
+    +'<div class="mrow" style="margin-top:8px"><span>= Attendu en espèces</span><b id="count-exp">'+ceur(expected)+'</b></div>'
+    +'<div class="mrow" style="font-size:18px;font-weight:700"><span>Écart (compté − attendu)</span><b id="count-ecart" style="color:'+fondEcartCol(ecart)+'">'+(ecart>=0?'+':'')+ceur(ecart)+'</b></div>'
     +'<div class="mrow" style="margin-top:10px;padding-top:8px;border-top:1px solid #eef1ea;font-size:17px;font-weight:700;color:#2c5c3d"><span>&#128184; À retirer (recette à déposer)</span><b id="count-retirer">'+ceur(Math.max(0,counted-fond))+'</b></div>'
     +'<div class="mrow" style="font-size:13px;color:var(--muted)"><span>À laisser en fond de caisse</span><b>'+ceur(fond)+'</b></div>';
   if(hist)hist.innerHTML=(CAISSE.counts&&CAISSE.counts.length)?CAISSE.counts.slice(0,40).map(function(c){
