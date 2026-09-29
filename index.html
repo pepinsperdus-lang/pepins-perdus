@@ -448,7 +448,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.76';
+const APP_VERSION='2026.77';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1382,6 +1382,10 @@ function _saveSiteCache(){try{localStorage.setItem('pepins_sitecache',JSON.strin
 function _hydrateSiteCache(){try{var c=JSON.parse(localStorage.getItem('pepins_sitecache')||'null');if(c&&c.rows&&c.rows.length){SITE.rows=c.rows;SITE.byName={};SITE.bySaid={};c.rows.forEach(function(x){if(x.base&&SITE.byName[normName(x.base)]==null)SITE.byName[normName(x.base)]=x;SITE.byName[normName(x.nom)]=x;SITE.bySaid[x.said]=x;});SITE.loaded=true;SITE.ts=c.ts||0;SITE.cache=true;return true;}}catch(e){}return false;}
 function pname(n){if(n==null)return '';if(typeof n==='string')return n;if(Array.isArray(n))return (n[0]&&n[0].value)||'';if(n.value)return n.value;return String(n);}
 function maybeRefreshSite(){try{if(SITE.loading)return;if(!SITE.loaded||(Date.now()-(SITE.ts||0))>20000)loadSite(true,true);else renderSite();}catch(e){}}
+// Rafraîchissement auto du stock du site toutes les 30 s tant qu'on reste sur Stock ou Caisse (écran allumé).
+try{setInterval(function(){try{if(document.hidden)return;var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');if((cur==='stock'||cur==='caisse')&&!SITE.loading&&(Date.now()-(SITE.ts||0))>25000){loadSite(true,true);}}catch(e){}},30000);}catch(e){}
+// Et dès qu'on revient sur l'app (écran rallumé / onglet réactivé) sur Stock ou Caisse.
+try{document.addEventListener('visibilitychange',function(){try{if(document.hidden)return;var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');if(cur==='stock'||cur==='caisse')maybeRefreshSite();}catch(e){}});}catch(e){}
 function loadSite(force,bg){
   if(SITE.loading)return;
   if(SITE.loaded&&!force){renderSite();return;}
