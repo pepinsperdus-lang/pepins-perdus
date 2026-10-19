@@ -335,6 +335,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
         <div id="caisse-total" style="margin-top:10px"></div>
         <div class="sec" style="margin-top:18px">Aujourd'hui</div>
         <div class="card" id="caisse-day"></div>
+        <button class="ghost" style="margin-top:12px;color:#b0512c;border-color:#e4c3b3" onclick="caisseRefundOpen()">&#8617;&#65038; Faire un remboursement (carte / esp&egrave;ces)</button>
         <p class="hint" style="margin-top:8px">Outil interne de vente + d&eacute;stockage. Pour l'encaissement r&eacute;glementaire des particuliers (logiciel de caisse certifi&eacute;), &agrave; valider avec ton comptable.</p>
       </div>
 
@@ -370,6 +371,8 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
         <div class="card" id="fond-grid"></div>
         <div class="card" id="fond-recon" style="margin-top:10px"></div>
         <button class="save" style="margin-top:12px" onclick="fondSaveCount()">Enregistrer le comptage</button>
+        <div class="sec" style="margin-top:18px">Cl&ocirc;ture des esp&egrave;ces</div>
+        <div class="card" id="fond-clearcash"></div>
         <div class="sec" style="margin-top:18px">Historique des comptages</div>
         <div class="card" id="fond-hist"></div>
       </div>
@@ -449,7 +452,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.79';
+const APP_VERSION='2026.81';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1530,7 +1533,12 @@ function delTodo(id){var removed=TODO.items.filter(function(x){return x.id===id;
 
 // ---- CAISSE (vente sur place · déstockage auto du site) ----
 var CAISSE={sales:[],tva:5.5,catTTC:false};
-function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v1')||'null');if(s&&s.sales){CAISSE=s;}}catch(e){}if(!CAISSE.sales)CAISSE.sales=[];if(CAISSE.tva==null||isNaN(CAISSE.tva))CAISSE.tva=5.5;if(CAISSE.catTTC==null)CAISSE.catTTC=false;if(!CAISSE.fond)CAISSE.fond={denoms:{},total:0,ts:0};if(!CAISSE.counts)CAISSE.counts=[];if(!state.cart)state.cart=[];if(!state.countDraft)state.countDraft={};if(!state.caisseClient)state.caisseClient={};if(!state.caissePay)state.caissePay='espece';}
+function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v1')||'null');if(s&&s.sales){CAISSE=s;}}catch(e){}if(!CAISSE.sales)CAISSE.sales=[];if(CAISSE.tva==null||isNaN(CAISSE.tva))CAISSE.tva=5.5;if(CAISSE.catTTC==null)CAISSE.catTTC=false;if(!CAISSE.fond)CAISSE.fond={denoms:{},total:0,ts:0};if(!CAISSE.counts)CAISSE.counts=[];if(!state.cart)state.cart=[];if(!state.countDraft)state.countDraft={};if(!state.caisseClient)state.caisseClient={};if(!state.caissePay)state.caissePay='espece';if(!CAISSE.deleted)CAISSE.deleted={};_caissePrune();}
+// Suppression PERMANENTE (compatible avec la synchro "union" multi-téléphones).
+// On garde la liste des id supprimés (tombstones) : elle ne rétrécit jamais et
+// se propage à tous les appareils, donc un ticket supprimé ne peut pas revenir.
+function _caissePrune(){var d=(CAISSE&&CAISSE.deleted);if(!d)return false;var b=(CAISSE.sales||[]).length;CAISSE.sales=(CAISSE.sales||[]).filter(function(s){return !(s&&s.id&&d[s.id]);});return (CAISSE.sales||[]).length!==b;}
+function _caisseDrop(ids){if(!CAISSE.deleted)CAISSE.deleted={};var now=Date.now();var m={};(ids||[]).forEach(function(id){if(id){CAISSE.deleted[id]=now;m[id]=1;}});CAISSE.sales=(CAISSE.sales||[]).filter(function(s){return !(s&&s.id&&m[s.id]);});}
 function saveCaisse(){try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{cloudPush('caisse',CAISSE);}catch(e){}}
 function ceur(x){x=(+x)||0;return x.toFixed(2).replace('.',',')+' €';}
 function caisseTva(){return (CAISSE&&CAISSE.tva!=null&&!isNaN(CAISSE.tva))?Number(CAISSE.tva):5.5;}
@@ -1544,7 +1552,7 @@ function _cartTva(){return (state.cart||[]).reduce(function(s,l){var t=((+l.pu)|
 // --- moyens de paiement (gere le paiement mixte) ---
 function _saleModes(s){var o={espece:0,cheque:0,cb:0};if(s&&s.parts&&s.parts.length){s.parts.forEach(function(p){var m=(p.mode==='cheque'||p.mode==='cb')?p.mode:'espece';o[m]+=(+p.amount)||0;});}else if(s){var m=(s.pay==='cheque'||s.pay==='cb')?s.pay:'espece';o[m]+=(+s.total)||0;}return o;}
 function _saleCash(s){return _saleModes(s).espece;}
-function _salePayLabel(s){var L={espece:'Espèces',cheque:'Chèque',cb:'Carte'};if(s&&s.parts&&s.parts.length){return s.parts.filter(function(p){return (+p.amount)>0.005;}).map(function(p){return (L[p.mode]||p.mode)+' '+ceur(p.amount);}).join(' + ');}return (s&&L[s.pay])||(s&&s.pay)||'';}
+function _salePayLabel(s){var L={espece:'Espèces',cheque:'Chèque',cb:'Carte'};var pre=(s&&s.refund)?'Remboursement · ':'';if(s&&s.parts&&s.parts.length){return pre+s.parts.filter(function(p){return (+p.amount)>0.005;}).map(function(p){return (L[p.mode]||p.mode)+' '+ceur(p.amount);}).join(' + ');}return pre+((s&&L[s.pay])||(s&&s.pay)||'');}
 function _frDate(d){return ('0'+d.getDate()).slice(-2)+'/'+('0'+(d.getMonth()+1)).slice(-2)+'/'+d.getFullYear();}
 function _frDateTime(d){return _frDate(d)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
 function renderCaisse(){
@@ -1861,8 +1869,49 @@ function ticketVoidFromSheet(id){closeSheet();caisseVoid(id);}
 function ticketDelete(id){
   var s=_saleById(id);if(!s)return;
   if(!window.confirm('Supprimer définitivement ce ticket de '+ceur(s.total)+' ?\n\nLe stock du site ne sera PAS remis (à utiliser pour nettoyer, pas pour une vente annulée).'))return;
-  CAISSE.sales=(CAISSE.sales||[]).filter(function(x){return x.id!==id;});
-  saveCaisse();try{renderCaisse();}catch(e){}closeSheet();toast('Ticket supprimé');
+  _caisseDrop([id]);
+  saveCaisse();try{renderCaisse();}catch(e){}closeSheet();toast('Ticket supprimé définitivement');
+}
+
+// ---- REMBOURSEMENT (carte / espèces) ----
+function caisseRefundOpen(){
+  if(!state.refundPay)state.refundPay='espece';
+  state.refundAmt='';state.refundNote='';
+  renderRefundSheet();
+  $('#ov').classList.add('show');
+}
+function refundSetPay(m){state.refundPay=(m==='cb')?'cb':'espece';renderRefundSheet();}
+function refundSetAmt(v){state.refundAmt=v;}
+function refundSetNote(v){state.refundNote=v;}
+function renderRefundSheet(){
+  var pay=state.refundPay||'espece';
+  var segs=[['espece','Espèces'],['cb','Carte']].map(function(m){return '<button class="'+(pay===m[0]?'on':'')+'" onclick="refundSetPay(\''+m[0]+'\')">'+m[1]+'</button>';}).join('');
+  $('#sheetbody').innerHTML='<div class="grab"></div>'
+    +'<h2 style="font-size:20px;margin:0 0 2px">Remboursement</h2>'
+    +'<p class="dsub">Rendre de l\'argent à un client (retour, erreur, geste commercial). Le montant est déduit de la recette du moyen choisi.</p>'
+    +'<div class="sec" style="margin-top:12px">Montant à rembourser</div>'
+    +'<div class="card"><div style="display:flex;gap:10px;align-items:center"><input id="rf-amt" inputmode="decimal" value="'+esc(''+(state.refundAmt||''))+'" oninput="refundSetAmt(this.value)" placeholder="0,00" style="flex:1;font-size:22px;padding:10px;border:1px solid #dfe3d8;border-radius:10px;text-align:right"><span style="font-size:18px;font-weight:700">€</span></div></div>'
+    +'<div class="sec" style="margin-top:14px">Moyen</div>'
+    +'<div class="seg">'+segs+'</div>'
+    +'<div class="sec" style="margin-top:14px">Note (facultatif)</div>'
+    +'<div class="card"><input id="rf-note" class="inp" value="'+esc(''+(state.refundNote||''))+'" oninput="refundSetNote(this.value)" placeholder="ex. retour rosier abîmé"></div>'
+    +'<button class="save" style="margin-top:16px;background:#b0512c" onclick="caisseRefundDo()">Valider le remboursement</button>'
+    +'<p class="hint" style="margin-top:8px">Le remboursement apparaît comme un ticket négatif (en rouge) dans les tickets et le comptage. Il ne modifie pas le stock du site.</p>';
+}
+function caisseRefundDo(){
+  var amt=parseFloat((''+(state.refundAmt||'')).replace(',','.'))||0;amt=Math.round(amt*100)/100;
+  if(amt<=0){toast('Indique un montant à rembourser');return;}
+  var pay=(state.refundPay==='cb')?'cb':'espece';
+  var note=(''+(state.refundNote||'')).trim();
+  if(!window.confirm('Rembourser '+ceur(amt)+' en '+(pay==='cb'?'carte':'espèces')+' ?'))return;
+  var sale={id:uid(),ts:Date.now(),pay:pay,refund:true,pro:false,
+    total:-amt,ht:-amt,tva:0,note:note,
+    lines:[{said:null,pid:null,nom:'Remboursement'+(note?' — '+note:''),pu:-amt,qty:1,tva:0}]};
+  CAISSE.sales.unshift(sale);saveCaisse();
+  state.refundAmt='';state.refundNote='';
+  try{closeSheet();}catch(e){}
+  renderCaisse();
+  toast('Remboursement de '+ceur(amt)+' enregistré');
 }
 
 // ---- FONDS DE CAISSE + COMPTAGE ESPÈCES ----
@@ -1922,6 +1971,13 @@ function renderFond(){
     +'<div class="mrow" style="font-size:18px;font-weight:700"><span>Écart (compté − attendu)</span><b id="count-ecart" style="color:'+fondEcartCol(ecart)+'">'+(ecart>=0?'+':'')+ceur(ecart)+'</b></div>'
     +'<div class="mrow" style="margin-top:10px;padding-top:8px;border-top:1px solid #eef1ea;font-size:17px;font-weight:700;color:#2c5c3d"><span>&#128184; À retirer (recette à déposer)</span><b id="count-retirer">'+ceur(Math.max(0,counted-fond))+'</b></div>'
     +'<div class="mrow" style="font-size:13px;color:var(--muted)"><span>À laisser en fond de caisse</span><b>'+ceur(fond)+'</b></div>';
+  var ccbox=document.getElementById('fond-clearcash');
+  if(ccbox){var col=_cashOnlySales();var cct=col.reduce(function(a,s){return a+(s.total||0);},0);
+    ccbox.innerHTML='<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;line-height:1.45">Supprime d\'un coup tous les tickets pay&eacute;s <b>100% en esp&egrave;ces</b> (les tickets mixtes, carte ou ch&egrave;que ne sont pas touch&eacute;s). &Agrave; utiliser une fois les esp&egrave;ces compt&eacute;es et d&eacute;pos&eacute;es.</p>'
+      +'<div class="mrow" style="font-size:16px;font-weight:700"><span>'+col.length+' ticket'+(col.length>1?'s':'')+' esp&egrave;ces</span><b>'+ceur(cct)+'</b></div>'
+      +'<button class="del" style="margin-top:10px"'+(col.length?'':' disabled style="margin-top:10px;opacity:.5"')+' onclick="caisseClearCash()">&#128465;&#65039; Supprimer les '+col.length+' ticket'+(col.length>1?'s':'')+' esp&egrave;ces ('+ceur(cct)+')</button>'
+      +'<p class="hint" style="margin-top:6px">Action irr&eacute;versible. Le stock du site n\'est pas remis.</p>';
+  }
   if(hist)hist.innerHTML=(CAISSE.counts&&CAISSE.counts.length)?CAISSE.counts.slice(0,40).map(function(c){
     return '<div class="ent"><div class="m"><b>'+ceur(c.total)+'</b><span>'+fondDate(c.ts)+' · attendu '+ceur(c.expected)+'</span></div><b style="color:'+fondEcartCol(c.ecart)+';flex:none">'+(c.ecart>=0?'+':'')+ceur(c.ecart)+'</b></div>';
   }).join(''):emptyBox('Aucun comptage enregistré.');
@@ -1941,6 +1997,24 @@ function fondSetRef(){
   if(!window.confirm('Définir le comptage actuel comme fonds de caisse de référence ?'))return;
   CAISSE.fond={denoms:Object.assign({},state.countDraft||{}),total:_sumDenoms(state.countDraft||{}),ts:Date.now()};saveCaisse();renderFond();
   toast('Fonds de caisse défini · '+ceur(CAISSE.fond.total));
+}
+// Tickets payés UNIQUEMENT en espèces (100%). Les tickets mixtes (carte/chèque + espèces) sont exclus.
+function _cashOnlySales(){
+  return (CAISSE.sales||[]).filter(function(s){
+    if(s.void)return false;
+    var m=_saleModes(s);
+    return Math.abs(m.cheque)<0.005 && Math.abs(m.cb)<0.005 && Math.abs(m.espece)>0.005;
+  });
+}
+function caisseClearCash(){
+  var list=_cashOnlySales();
+  if(!list.length){toast('Aucun ticket payé 100% en espèces');return;}
+  var tot=Math.round(list.reduce(function(a,s){return a+(s.total||0);},0)*100)/100;
+  var n=list.length;
+  if(!window.confirm('Supprimer définitivement '+n+' ticket'+(n>1?'s':'')+' payé'+(n>1?'s':'')+' 100% en espèces ?\n\nTotal espèces : '+ceur(tot)+'\n\nLes tickets mixtes (plusieurs moyens de paiement) ne sont PAS touchés. Le stock du site n\'est pas remis. Action irréversible.'))return;
+  _caisseDrop(list.map(function(s){return s.id;}));
+  saveCaisse();try{renderCaisse();}catch(e){}
+  toast(n+' ticket'+(n>1?'s':'')+' espèces supprimé'+(n>1?'s':'')+' définitivement · '+ceur(tot));
 }
 
 // ---- COMMANDE PORTE-GREFFES (éditable, coché « commandé » par année, sauvegardé + synchronisé) ----
@@ -2467,6 +2541,8 @@ function _fbApplyStore(key,val){
     if(incoming==null)return null;
     var loc=null;try{var lr=localStorage.getItem(ls);loc=(lr&&lr!=='null')?JSON.parse(lr):null;}catch(e){}
     var obj=(loc!=null)?_fbMerge(loc,incoming):incoming;
+    // tombstones caisse : on retire de la fusion tout ticket marqué supprimé (empêche la "résurrection" par l'union)
+    if(key==='caisse'&&obj&&obj.sales&&obj.deleted){var _d=obj.deleted;obj.sales=obj.sales.filter(function(s){return !(s&&s.id&&_d[s.id]);});}
     var mergedStr=JSON.stringify(obj);
     if(localStorage.getItem(ls)===mergedStr)return mergedStr; // rien de nouveau
     localStorage.setItem(ls,mergedStr);
