@@ -452,7 +452,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.83';
+const APP_VERSION='2026.84';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -2037,11 +2037,14 @@ function countDelete(id){
 }
 // Tickets payés UNIQUEMENT en espèces (100%), DEPUIS LE DERNIER COMPTAGE.
 // Les tickets mixtes (carte/chèque + espèces) et ceux d'avant le comptage sont exclus.
+function _cashBeforeTs(){if(!state.cashBefore)return null;var t=Date.parse(state.cashBefore+'T00:00:00');return isNaN(t)?null:t;}
 function _cashOnlySales(){
-  var since=lastCountTs();
+  var before=_cashBeforeTs();          // mode "anciens tickets avant une date"
+  var since=before!=null?null:lastCountTs(); // sinon : depuis le dernier comptage
   return (CAISSE.sales||[]).filter(function(s){
     if(s.void)return false;
-    if((s.ts||0)<=since)return false;
+    if(before!=null){ if((s.ts||0)>=before)return false; }
+    else { if((s.ts||0)<=since)return false; }
     var m=_saleModes(s);
     return Math.abs(m.cheque)<0.005 && Math.abs(m.cb)<0.005 && Math.abs(m.espece)>0.005;
   });
@@ -2049,24 +2052,36 @@ function _cashOnlySales(){
 function _cashSelId(id){return (state.cashSel&&state.cashSel[id]===false)?false:true;} // coché par défaut
 function cashToggle(id,ch){if(!state.cashSel)state.cashSel={};state.cashSel[id]=!!ch;renderClearCash();}
 function cashSelectAll(v){if(!state.cashSel)state.cashSel={};_cashOnlySales().forEach(function(s){state.cashSel[s.id]=!!v;});renderClearCash();}
+function cashSetBefore(v){state.cashBefore=v||'';state.cashSel={};renderClearCash();}
 function renderClearCash(){
   var ccbox=document.getElementById('fond-clearcash');if(!ccbox)return;
   var last=(CAISSE.counts&&CAISSE.counts[0])||null;
+  var beforeTs=_cashBeforeTs();
   var col=_cashOnlySales();
-  var since=(last?('Depuis le dernier comptage du '+fondDate(last.ts)+'.'):'Depuis le début (aucun comptage enregistré).');
-  if(!col.length){ccbox.innerHTML='<p style="font-size:12.5px;color:var(--muted);margin:0;line-height:1.45">Aucun ticket 100% espèces depuis le dernier comptage. '+since+'</p>';return;}
+  var scope=(beforeTs!=null)
+    ? ('Tickets esp&egrave;ces <b>avant le '+_frDate(new Date(beforeTs))+'</b>.')
+    : (last?('Depuis le dernier comptage du '+fondDate(last.ts)+'.'):'Depuis le début (aucun comptage enregistré).');
+  var dateRow='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
+    +'<span style="font-size:13px;color:var(--muted)">Anciens tickets — avant le</span>'
+    +'<input type="date" value="'+esc(state.cashBefore||'')+'" onchange="cashSetBefore(this.value)" style="padding:7px;border:1px solid #dfe3d8;border-radius:8px">'
+    +(state.cashBefore?'<button class="ghost" style="padding:6px 10px;margin:0" onclick="cashSetBefore(\'\')">↺ depuis le dernier comptage</button>':'')
+    +'</div>';
   var chosen=col.filter(function(s){return _cashSelId(s.id);});
   var selTot=Math.round(chosen.reduce(function(a,s){return a+(s.total||0);},0)*100)/100;
+  var totAll=Math.round(col.reduce(function(a,s){return a+(s.total||0);},0)*100)/100;
+  if(!col.length){ccbox.innerHTML='<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;line-height:1.45">Coche les tickets pay&eacute;s <b>100% esp&egrave;ces</b> &agrave; supprimer. '+scope+'</p>'+dateRow+'<p style="font-size:13px;color:var(--muted);margin:4px 0 0">Aucun ticket 100% esp&egrave;ces sur cette p&eacute;riode.</p>';return;}
   var listHtml=col.map(function(s){var d=new Date(s.ts);var hh=('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
     var lbl=s.refund?'Remboursement':(((s.lines||[]).map(function(l){return (l.qty||1)+'× '+(l.nom||'?');}).join(', '))||'Vente');
     return '<label class="ent" style="gap:10px;align-items:center;cursor:pointer"><input type="checkbox" '+(_cashSelId(s.id)?'checked':'')+' onchange="cashToggle(\''+s.id+'\',this.checked)" style="width:18px;height:18px;accent-color:#b0512c;flex:none"><div class="m" style="min-width:0"><b>'+ceur(s.total)+'</b><span style="white-space:normal;line-height:1.3">'+_frDate(d)+' '+hh+' · '+esc(lbl)+'</span></div></label>';
   }).join('');
-  ccbox.innerHTML='<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;line-height:1.45">Coche les tickets pay&eacute;s <b>100% en esp&egrave;ces</b> &agrave; supprimer (depuis le dernier comptage). Les tickets mixtes (carte/ch&egrave;que) ne sont pas list&eacute;s.</p>'
+  ccbox.innerHTML='<p style="font-size:12.5px;color:var(--muted);margin:0 0 8px;line-height:1.45">Coche les tickets pay&eacute;s <b>100% en esp&egrave;ces</b> &agrave; supprimer. '+scope+' Les tickets mixtes (carte/ch&egrave;que) ne sont pas list&eacute;s.</p>'
+    +dateRow
     +'<div class="seg" style="margin-bottom:8px"><button onclick="cashSelectAll(true)">Tout cocher</button><button onclick="cashSelectAll(false)">Tout d&eacute;cocher</button></div>'
     +listHtml
-    +'<div class="mrow" style="font-size:16px;font-weight:700;border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>S&eacute;lection : '+chosen.length+' / '+col.length+' ticket'+(col.length>1?'s':'')+'</span><b>'+ceur(selTot)+'</b></div>'
+    +'<div class="mrow" style="font-size:13px;color:var(--muted);margin-top:4px"><span>Total de la p&eacute;riode</span><b>'+ceur(totAll)+' · '+col.length+' ticket'+(col.length>1?'s':'')+'</b></div>'
+    +'<div class="mrow" style="font-size:16px;font-weight:700;border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>S&eacute;lection : '+chosen.length+' ticket'+(chosen.length>1?'s':'')+'</span><b>'+ceur(selTot)+'</b></div>'
     +'<button class="del" style="margin-top:10px" '+(chosen.length?'':'disabled ')+'onclick="caisseClearCash()">&#128465;&#65039; Supprimer la s&eacute;lection ('+chosen.length+' &middot; '+ceur(selTot)+')</button>'
-    +'<p class="hint" style="margin-top:6px">'+since+' Action irr&eacute;versible &mdash; le stock du site n\'est pas remis.</p>';
+    +'<p class="hint" style="margin-top:6px">Action irr&eacute;versible &mdash; le stock du site n\'est pas remis.</p>';
 }
 function caisseClearCash(){
   var col=_cashOnlySales();
@@ -2074,7 +2089,8 @@ function caisseClearCash(){
   if(!list.length){toast('Aucun ticket sélectionné');return;}
   var tot=Math.round(list.reduce(function(a,s){return a+(s.total||0);},0)*100)/100;
   var n=list.length;
-  if(!window.confirm('Supprimer définitivement '+n+' ticket'+(n>1?'s':'')+' 100% espèces (depuis le dernier comptage) ?\n\nTotal : '+ceur(tot)+'\n\nAction irréversible. Le stock du site n\'est pas remis.'))return;
+  var scope=_cashBeforeTs()!=null?('avant le '+_frDate(new Date(_cashBeforeTs()))):'depuis le dernier comptage';
+  if(!window.confirm('Supprimer définitivement '+n+' ticket'+(n>1?'s':'')+' 100% espèces ('+scope+') ?\n\nTotal : '+ceur(tot)+'\n\nAction irréversible. Le stock du site n\'est pas remis.'))return;
   _caisseDrop(list.map(function(s){return s.id;}));
   list.forEach(function(s){if(state.cashSel)delete state.cashSel[s.id];});
   saveCaisse();try{renderCaisse();}catch(e){}
