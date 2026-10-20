@@ -452,7 +452,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.84';
+const APP_VERSION='2026.85';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1995,23 +1995,67 @@ function fondSetRef(){
 }
 // ---- MODIFIER / SUPPRIMER UN COMPTAGE ANCIEN ----
 function _num(v){return Math.round((parseFloat((''+v).replace(',','.'))||0)*100)/100;}
+function coSetCash(v){var e=document.getElementById('co-cash');if(e)e.value=(''+v).replace('.',',');coRefresh();}
+function coRefresh(){
+  var ce=state.coEdit;if(!ce)return;
+  var g=function(id){return _num((document.getElementById(id)||{}).value);};
+  var total=g('co-total'),cash=g('co-cash'),retr=g('co-retr');
+  var exp=Math.round((ce.fondConst+cash-retr)*100)/100;
+  var ec=Math.round((total-exp)*100)/100;
+  var set=function(id,txt,col){var e=document.getElementById(id);if(e){e.textContent=txt;if(col)e.style.color=col;}};
+  set('co-exp',ceur(exp));set('co-ecart',(ec>=0?'+':'')+ceur(ec),fondEcartCol(ec));
+  // signale si la recette saisie diffère des tickets réels
+  set('co-livehint', (Math.abs(cash-ce.liveCash)>0.005)?('Tickets actuels : '+ceur(ce.liveCash)):'' );
+}
 function countOpen(id){
   var c=(CAISSE.counts||[]).filter(function(x){return x.id===id;})[0];if(!c)return;
   var d=new Date(c.ts);
   var dtv=d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)+'T'+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);
   var fv=function(n){return (''+((+n)||0)).replace('.',',');};
+  // fond de caisse figé à ce comptage, et début de période (comptage précédent ou fond)
+  var fondConst=Math.round((((+c.expected)||0)-((+c.cashSales)||0)+((+c.retraits)||0))*100)/100;
+  var prevTs=0;(CAISSE.counts||[]).forEach(function(x){if(x.id!==c.id&&x.ts<c.ts&&x.ts>prevTs)prevTs=x.ts;});
+  if(!prevTs)prevTs=(CAISSE.fond&&CAISSE.fond.ts)||0;
+  // tickets de la période (recomputés en direct sur les données actuelles)
+  var tks=(CAISSE.sales||[]).filter(function(s){return s&&!s.void&&s.ts>prevTs&&s.ts<=c.ts;});
+  var cashTks=tks.filter(function(s){return Math.abs(_saleCash(s))>0.005;}).sort(function(a,b){return a.ts-b.ts;});
+  var liveCash=Math.round(cashTks.reduce(function(a,s){return a+_saleCash(s);},0)*100)/100;
+  state.coEdit={id:c.id,fondConst:fondConst,liveCash:liveCash};
+  var listHtml=cashTks.length?cashTks.map(function(s){
+    var cv=_saleCash(s);
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-bottom:1px solid #f0f2ec;font-size:12.5px"><span style="color:var(--muted);flex:1;min-width:0">'+fondDate(s.ts)+' · '+esc(_salePayLabel(s))+'</span><b style="flex:none;color:'+(cv<0?'#b0512c':'#2c3b2f')+'">'+(cv>=0?'+':'')+ceur(cv)+'</b></div>';
+  }).join(''):'<p class="hint" style="margin:4px 0">Aucun ticket espèces sur cette période.</p>';
+  var dn=c.denoms||{};
+  var dnRows=FOND_DENOMS.filter(function(v){return (parseInt(dn[v]||0,10)||0)>0;}).map(function(v){var q=parseInt(dn[v]||0,10)||0;return '<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0"><span style="color:var(--muted)">'+fondLabel(v)+' &times; '+q+'</span><b>'+ceur(Math.round(v*100)*q/100)+'</b></div>';}).join('');
+  var diffNote=(Math.abs(liveCash-((+c.cashSales)||0))>0.005)?('<div class="hint" style="margin-top:4px;color:#8a6d1f">Enregistré lors du comptage : '+ceur(c.cashSales)+' (les tickets ont changé depuis)</div>'):'';
   $('#sheetbody').innerHTML='<div class="grab"></div>'
     +'<h2 style="font-size:20px;margin:0 0 2px">Modifier le comptage</h2>'
-    +'<p class="dsub">Enregistré le '+fondDate(c.ts)+' · écart actuel '+(c.ecart>=0?'+':'')+ceur(c.ecart)+'</p>'
+    +'<p class="dsub">Enregistré le '+fondDate(c.ts)+' · écart enregistré '+(c.ecart>=0?'+':'')+ceur(c.ecart)+'</p>'
+    +'<div class="sec" style="margin-top:12px">Détail de la période (comme si on le refaisait)</div>'
+    +'<div class="card">'
+      +'<div class="mrow"><span>Période</span><b>du '+fondDate(prevTs||c.ts)+' au '+fondDate(c.ts)+'</b></div>'
+      +'<div class="mrow"><span>Fond de caisse (figé)</span><b>'+ceur(fondConst)+'</b></div>'
+      +'<div style="margin-top:10px;font-weight:600;font-size:13px">Tickets espèces pris en compte ('+cashTks.length+')</div>'
+      +listHtml
+      +'<div class="mrow" style="font-weight:700;border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>= Recette espèces (tickets actuels)</span><b>'+(liveCash>=0?'':'')+ceur(liveCash)+'</b></div>'
+      +diffNote
+      +(dnRows?('<div style="margin-top:10px;font-weight:600;font-size:13px">Détail des espèces comptées</div>'+dnRows):'')
+      +'<button class="ghost" style="margin-top:10px;width:100%" onclick="coSetCash('+liveCash+')">↻ Reprendre la recette des tickets ('+ceur(liveCash)+')</button>'
+    +'</div>'
     +'<div class="sec" style="margin-top:12px">Date &amp; heure</div>'
-    +'<div class="card"><input id="co-dt" type="datetime-local" value="'+dtv+'" class="inp"></div>'
+    +'<div class="card"><input id="co-dt" type="datetime-local" value="'+dtv+'" class="inp" oninput="coRefresh()"></div>'
     +'<div class="sec" style="margin-top:12px">Total compté (espèces en caisse)</div>'
-    +'<div class="card"><input id="co-total" inputmode="decimal" value="'+fv(c.total)+'" class="inp" style="text-align:right"> €</div>'
+    +'<div class="card"><input id="co-total" inputmode="decimal" value="'+fv(c.total)+'" class="inp" style="text-align:right" oninput="coRefresh()"> €</div>'
     +'<div class="sec" style="margin-top:12px">Recette espèces de la période</div>'
-    +'<div class="card"><input id="co-cash" inputmode="decimal" value="'+fv(c.cashSales)+'" class="inp" style="text-align:right"> €</div>'
+    +'<div class="card"><input id="co-cash" inputmode="decimal" value="'+fv(c.cashSales)+'" class="inp" style="text-align:right" oninput="coRefresh()"> €</div>'
+    +'<div id="co-livehint" class="hint" style="margin-top:4px;color:#8a6d1f"></div>'
     +'<div class="sec" style="margin-top:12px">Sorties / dépôts espèces</div>'
-    +'<div class="card"><input id="co-retr" inputmode="decimal" value="'+fv(c.retraits)+'" class="inp" style="text-align:right"> €</div>'
-    +'<p class="hint" style="margin-top:8px">L\'attendu et l\'écart sont recalculés automatiquement à l\'enregistrement.</p>'
+    +'<div class="card"><input id="co-retr" inputmode="decimal" value="'+fv(c.retraits)+'" class="inp" style="text-align:right" oninput="coRefresh()"> €</div>'
+    +'<div class="card" style="margin-top:12px">'
+      +'<div class="mrow"><span>= Attendu en espèces</span><b id="co-exp">'+ceur(c.expected)+'</b></div>'
+      +'<div class="mrow" style="font-size:17px;font-weight:700"><span>Écart (compté − attendu)</span><b id="co-ecart" style="color:'+fondEcartCol(c.ecart)+'">'+(c.ecart>=0?'+':'')+ceur(c.ecart)+'</b></div>'
+    +'</div>'
+    +'<p class="hint" style="margin-top:8px">L\'attendu et l\'écart se recalculent en direct. Enregistre pour les figer.</p>'
     +'<button class="save" style="margin-top:12px" onclick="countSave(\''+c.id+'\')">Enregistrer les modifications</button>'
     +'<button class="del" style="margin-top:10px" onclick="countDelete(\''+c.id+'\')">Supprimer ce comptage</button>';
   $('#ov').classList.add('show');
