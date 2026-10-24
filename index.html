@@ -453,7 +453,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.86';
+const APP_VERSION='2026.87';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -546,6 +546,7 @@ function renderHome(){
   var yb=(SEM.bought[2026]||{});var rem=SEM.cat.filter(function(s){return !yb[s.id];}).length;
   $('#sem-cta-n').textContent=rem;$('#sem-cta-t').textContent=rem?rem+' semence'+(rem>1?'s':'')+' à acheter · 2026':'tout est acheté 🎉';
   var I={
+   caisse:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.6"/><path d="M5.5 12h.01M18.5 12h.01"/></svg>',
    plan:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3v18M15 3v18M3 9h18M3 15h18"/></svg>',
    stats:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
    elevage:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V8"/><path d="M12 8c0-2.2 1.8-4 4-4h3v3c0 2.2-1.8 4-4 4h-3"/><path d="M12 13H9c-2.2 0-4-1.8-4-4V6h3c2.2 0 4 1.8 4 4"/></svg>',
@@ -561,6 +562,7 @@ function renderHome(){
    admin:'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>'
   };
   var Q=[
+   {i:'caisse',l:'Caisse',r:'caisse'},
    {i:'todo',l:'Tâches',r:'todo'},{i:'pieds',l:'Pieds-mères',r:'pieds'},{i:'stock',l:'Stock site',r:'stock'},
    {i:'elevage',l:'Stock global',r:'elevage'},{i:'semis',l:'Semis',r:'semis'},{i:'cmd',l:'Cmd porte-greffes',r:'cmd'},
    {i:'semences',l:'Semences',r:'semences'},{i:'arrosage',l:'Arrosages',r:'arrosage'},{i:'plan',l:'Planches',r:'plan'},
@@ -2822,6 +2824,30 @@ function cloudPush(key,obj){
     else { _fbPending[key]=obj; }
   }catch(e){}
 }
+// ---- SYNCHRO LIVE : à chaque retour au premier plan, on force la reconnexion,
+// on vide la file d'attente locale, et on re-tire les données tout de suite.
+var _fbWakeT=0;
+function _fbWake(){
+  try{
+    if(!_fbdb){ if(!_fbReady){try{fbInit();}catch(e){}} return; }
+    var now=Date.now();if(now-_fbWakeT<1500)return;_fbWakeT=now; // anti-rafale
+    try{_fbdb.goOnline();}catch(e){}
+    // 1) envoyer ce qui attendait (tickets saisis hors-ligne)
+    try{Object.keys(_fbPending||{}).forEach(function(k){
+      if(k==='records'){try{fbSyncRecords();}catch(e){}}
+      else{try{_fbdb.ref('stores/'+k).set(JSON.stringify(_fbPending[k]));}catch(e){}}
+    });_fbPending={};}catch(e){}
+    // 2) re-tirer immédiatement l'état du cloud (au cas où l'écoute était gelée en arrière-plan)
+    try{Object.keys(_FBLS).forEach(function(k){
+      _fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;var m=_fbApplyStore(k,v);if(m&&m!==v){try{_fbdb.ref('stores/'+k).set(m);}catch(e){}}}).catch(function(){});
+    });}catch(e){}
+    try{_cloudDot();}catch(e){}
+  }catch(e){}
+}
+try{document.addEventListener('visibilitychange',function(){if(!document.hidden)_fbWake();});}catch(e){}
+try{window.addEventListener('focus',function(){_fbWake();});}catch(e){}
+try{window.addEventListener('pageshow',function(){_fbWake();});}catch(e){}
+try{window.addEventListener('online',function(){_fbWake();});}catch(e){}
 function _cloudGet(key){return fetch(CLOUD_R+'?k='+encodeURIComponent(key)+'&t='+Date.now()).then(function(r){return r.text();}).catch(function(){return '';});}
 async function _cloudReadKey(key){
   var t=await _cloudGet(key);
