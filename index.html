@@ -453,7 +453,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.87';
+const APP_VERSION='2026.88';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -2844,10 +2844,32 @@ function _fbWake(){
     try{_cloudDot();}catch(e){}
   }catch(e){}
 }
-try{document.addEventListener('visibilitychange',function(){if(!document.hidden)_fbWake();});}catch(e){}
+// ---- MISE À JOUR AUTOMATIQUE : à l'ouverture, l'app vérifie s'il existe une
+// version plus récente en ligne et se recharge toute seule (plus aucune manip).
+var _verBusy=false;
+async function _checkUpdate(){
+  if(_verBusy)return;_verBusy=true;
+  try{
+    var r=await fetch('index.html?_v='+Date.now(),{cache:'no-store'});
+    if(r&&r.ok){
+      var t=await r.text();var m=t.match(/APP_VERSION='([^']+)'/);
+      if(m&&m[1]&&m[1]!==APP_VERSION){
+        var tgt=m[1],tried=null;try{tried=sessionStorage.getItem('pp_updto');}catch(e){}
+        if(tried!==tgt){ // évite toute boucle de rechargement dans la même session
+          try{sessionStorage.setItem('pp_updto',tgt);}catch(e){}
+          try{_cloudDot();}catch(e){}
+          location.replace(location.pathname+'?maj='+encodeURIComponent(tgt));
+          return;
+        }
+      }
+    }
+  }catch(e){}finally{_verBusy=false;}
+}
+try{document.addEventListener('visibilitychange',function(){if(!document.hidden){_fbWake();_checkUpdate();}});}catch(e){}
 try{window.addEventListener('focus',function(){_fbWake();});}catch(e){}
-try{window.addEventListener('pageshow',function(){_fbWake();});}catch(e){}
-try{window.addEventListener('online',function(){_fbWake();});}catch(e){}
+try{window.addEventListener('pageshow',function(){_fbWake();_checkUpdate();});}catch(e){}
+try{window.addEventListener('online',function(){_fbWake();_checkUpdate();});}catch(e){}
+try{setTimeout(_checkUpdate,3500);}catch(e){}
 function _cloudGet(key){return fetch(CLOUD_R+'?k='+encodeURIComponent(key)+'&t='+Date.now()).then(function(r){return r.text();}).catch(function(){return '';});}
 async function _cloudReadKey(key){
   var t=await _cloudGet(key);
