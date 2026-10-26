@@ -455,7 +455,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.89';
+const APP_VERSION='2026.90';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1944,7 +1944,13 @@ function fondRefreshTotals(){
 }
 // ---- BASE DE CAISSE (point de départ vérifié) + SOLDE EN DIRECT ----
 function _baseRef(){
+  // 1) une base explicite ("Repartir d'une base saine") a toujours priorité
   if(CAISSE.base&&CAISSE.base.ts)return {ts:CAISSE.base.ts,amount:Math.round(((+CAISSE.base.amount)||0)*100)/100,label:CAISSE.base.label||'Base vérifiée'};
+  // 2) sinon la base SUIT le dernier comptage (son total compté + sa date) :
+  //    ainsi les ventes déjà soldées lors d'un comptage précédent ne sont plus recomptées.
+  var last=(CAISSE.counts&&CAISSE.counts.slice().sort(function(a,b){return b.ts-a.ts;})[0])||null;
+  if(last&&last.ts)return {ts:last.ts,amount:Math.round(((+last.total)||0)*100)/100,label:'Dernier comptage'};
+  // 3) aucun comptage : on part du fond de caisse
   var f=CAISSE.fond||{};return {ts:(f.ts||0),amount:fondTotal(),label:'Fond de caisse'};
 }
 function sortiesSince(ts){return Math.round((CAISSE.sorties||[]).reduce(function(a,x){return a+((x&&x.ts>(ts||0))?((+x.amount)||0):0);},0)*100)/100;}
@@ -2017,12 +2023,12 @@ function renderFond(){
   // recettes par moyen de paiement (depuis le dernier comptage) — espèces / CB / chèque
   var recbox=document.getElementById('fond-recettes');
   if(recbox){
-    var tk=takingsSince(lastCountTs());var totRec=Math.round((tk.espece+tk.cb+tk.cheque)*100)/100;
+    var tk=takingsSince(b.ts);var totRec=Math.round((tk.espece+tk.cb+tk.cheque)*100)/100;
     recbox.innerHTML='<div class="mrow" style="cursor:pointer" onclick="ticketsSetPay(\'espece\')"><span>Espèces ›</span><b>'+ceur(tk.espece)+'</b></div>'
       +'<div class="mrow" style="cursor:pointer" onclick="ticketsSetPay(\'cb\')"><span>Carte (CB) ›</span><b>'+ceur(tk.cb)+'</b></div>'
       +'<div class="mrow" style="cursor:pointer" onclick="ticketsSetPay(\'cheque\')"><span>Chèque ›</span><b>'+ceur(tk.cheque)+'</b></div>'
       +'<div class="mrow" style="font-size:16px;font-weight:700;border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>Total recettes</span><b>'+ceur(totRec)+'</b></div>'
-      +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(last?('Depuis le dernier comptage du '+fondDate(last.ts)+'.'):'Depuis le début (aucun comptage enregistré).')+' Touche une ligne pour voir les tickets.</div>';
+      +'<div style="font-size:12px;color:var(--muted);margin-top:6px">Depuis le '+fondDate(b.ts)+' · '+esc(b.label)+'. Les ventes d\'avant (déjà comptées) ne sont plus incluses. Touche une ligne pour voir les tickets.</div>';
   }
   // sorties / dépôts
   if(sorbox){
