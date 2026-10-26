@@ -364,6 +364,8 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
         <p class="dsub">Ta caisse en un coup d'&oelig;il : combien d'esp&egrave;ces tu dois avoir, tes d&eacute;p&ocirc;ts, et le comptage.</p>
         <div class="kgrid" id="fond-kpi"></div>
         <div class="card" id="fond-solde" style="margin-top:10px"></div>
+        <div class="sec" style="margin-top:16px">Recettes par moyen de paiement</div>
+        <div class="card" id="fond-recettes"></div>
         <div class="sec" style="margin-top:16px">Sorties &amp; d&eacute;p&ocirc;ts (banque, achats&hellip;)</div>
         <div class="card" id="fond-sorties"></div>
         <div class="sec" style="margin-top:16px">Faire un comptage (billets &amp; pi&egrave;ces)</div>
@@ -453,7 +455,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.88';
+const APP_VERSION='2026.89';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -2012,6 +2014,16 @@ function renderFond(){
     +'<div class="mrow" style="font-size:17px;font-weight:700;border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>= Espèces en caisse</span><b>'+ceur(solde)+'</b></div>'
     +'<div style="font-size:12px;color:var(--muted);margin-top:6px">Base définie le '+fondDate(b.ts)+(b.label?(' · '+esc(b.label)):'')+'.</div>'
     +'<div style="font-size:12px;color:#3f7350;margin-top:4px;cursor:pointer" onclick="ticketsSetPay(\'all\')">Voir les tickets ›</div>';
+  // recettes par moyen de paiement (depuis le dernier comptage) — espèces / CB / chèque
+  var recbox=document.getElementById('fond-recettes');
+  if(recbox){
+    var tk=takingsSince(lastCountTs());var totRec=Math.round((tk.espece+tk.cb+tk.cheque)*100)/100;
+    recbox.innerHTML='<div class="mrow" style="cursor:pointer" onclick="ticketsSetPay(\'espece\')"><span>Espèces ›</span><b>'+ceur(tk.espece)+'</b></div>'
+      +'<div class="mrow" style="cursor:pointer" onclick="ticketsSetPay(\'cb\')"><span>Carte (CB) ›</span><b>'+ceur(tk.cb)+'</b></div>'
+      +'<div class="mrow" style="cursor:pointer" onclick="ticketsSetPay(\'cheque\')"><span>Chèque ›</span><b>'+ceur(tk.cheque)+'</b></div>'
+      +'<div class="mrow" style="font-size:16px;font-weight:700;border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>Total recettes</span><b>'+ceur(totRec)+'</b></div>'
+      +'<div style="font-size:12px;color:var(--muted);margin-top:6px">'+(last?('Depuis le dernier comptage du '+fondDate(last.ts)+'.'):'Depuis le début (aucun comptage enregistré).')+' Touche une ligne pour voir les tickets.</div>';
+  }
   // sorties / dépôts
   if(sorbox){
     var sl=(CAISSE.sorties||[]).slice().sort(function(x,y){return y.ts-x.ts;}).slice(0,20);
