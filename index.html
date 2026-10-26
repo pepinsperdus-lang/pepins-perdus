@@ -455,7 +455,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.90';
+const APP_VERSION='2026.91';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -2114,6 +2114,23 @@ function countOpen(id){
   var dn=c.denoms||{};
   var dnRows=FOND_DENOMS.filter(function(v){return (parseInt(dn[v]||0,10)||0)>0;}).map(function(v){var q=parseInt(dn[v]||0,10)||0;return '<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0"><span style="color:var(--muted)">'+fondLabel(v)+' &times; '+q+'</span><b>'+ceur(Math.round(v*100)*q/100)+'</b></div>';}).join('');
   var diffNote=(Math.abs(liveCash-((+c.cashSales)||0))>0.005)?('<div class="hint" style="margin-top:4px;color:#8a6d1f">Enregistré lors du comptage : '+ceur(c.cashSales)+' (les tickets ont changé depuis)</div>'):'';
+  // TOUS les tickets de la période (espèces + CB + chèque) pour vérification
+  var modesTot={espece:0,cheque:0,cb:0};tks.forEach(function(s){var m=_saleModes(s);modesTot.espece+=m.espece;modesTot.cheque+=m.cheque;modesTot.cb+=m.cb;});
+  modesTot.espece=Math.round(modesTot.espece*100)/100;modesTot.cb=Math.round(modesTot.cb*100)/100;modesTot.cheque=Math.round(modesTot.cheque*100)/100;
+  var allTks=tks.slice().sort(function(a,b){return a.ts-b.ts;});
+  var allList=allTks.length?allTks.map(function(s){
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #f0f2ec;font-size:12.5px;cursor:pointer" onclick="ticketOpen(\''+s.id+'\')"><span style="flex:1;min-width:0">'+fondDate(s.ts)+' · '+esc(_salePayLabel(s))+(s.pro?' · pro':'')+'</span><b style="flex:none">'+ceur(s.total)+'</b><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#c3cabb" stroke-width="2.4" style="flex:none;margin-left:4px"><path d="M9 6l6 6-6 6"/></svg></div>';
+  }).join(''):'<p class="hint" style="margin:4px 0">Aucun ticket sur cette période.</p>';
+  var allTicketsCard='<div class="sec" style="margin-top:12px">Tous les tickets de la période (vérification)</div>'
+    +'<div class="card">'
+      +'<div class="mrow"><span>Espèces</span><b>'+ceur(modesTot.espece)+'</b></div>'
+      +'<div class="mrow"><span>Carte (CB)</span><b>'+ceur(modesTot.cb)+'</b></div>'
+      +'<div class="mrow"><span>Chèque</span><b>'+ceur(modesTot.cheque)+'</b></div>'
+      +'<div class="mrow" style="font-weight:700;border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>Total encaissé</span><b>'+ceur(modesTot.espece+modesTot.cb+modesTot.cheque)+'</b></div>'
+      +'<div style="margin-top:10px;font-weight:600;font-size:13px">Détail des '+allTks.length+' ticket'+(allTks.length>1?'s':'')+'</div>'
+      +allList
+      +'<p class="hint" style="margin-top:6px">Touche un ticket pour l\'ouvrir et le vérifier (montant, moyen de paiement, articles).</p>'
+    +'</div>';
   $('#sheetbody').innerHTML='<div class="grab"></div>'
     +'<h2 style="font-size:20px;margin:0 0 2px">Modifier le comptage</h2>'
     +'<p class="dsub">Enregistré le '+fondDate(c.ts)+' · écart enregistré '+(c.ecart>=0?'+':'')+ceur(c.ecart)+'</p>'
@@ -2128,6 +2145,7 @@ function countOpen(id){
       +(dnRows?('<div style="margin-top:10px;font-weight:600;font-size:13px">Détail des espèces comptées</div>'+dnRows):'')
       +'<button class="ghost" style="margin-top:10px;width:100%" onclick="coSetCash('+liveCash+')">↻ Reprendre la recette des tickets ('+ceur(liveCash)+')</button>'
     +'</div>'
+    +allTicketsCard
     +'<div class="sec" style="margin-top:12px">Date &amp; heure</div>'
     +'<div class="card"><input id="co-dt" type="datetime-local" value="'+dtv+'" class="inp" oninput="coRefresh()"></div>'
     +'<div class="sec" style="margin-top:12px">Total compté (espèces en caisse)</div>'
