@@ -455,7 +455,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.92';
+const APP_VERSION='2026.93';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1861,13 +1861,12 @@ function ticketEmailSend(id){
   var el=document.getElementById('tk-email');var to=(el&&el.value||'').trim();
   var msg=document.getElementById('tk-email-msg');
   var say=function(txt,col){if(msg){msg.style.color=col||'var(--muted)';msg.textContent=txt;}};
-  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)){say('Adresse e-mail invalide','#b0512c');return;}
-  say('Envoi en cours…');
-  var payload={to:to,subject:'Votre ticket — Pépins Perdus',text:_saleReceiptText(s),html:_saleReceiptHtml(s),token:MAIL_TOKEN};
-  fetch(MAIL_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
-    .then(function(r){return r.text().then(function(t){var j={};try{j=JSON.parse(t);}catch(e){}return {ok:r.ok,j:j};});})
-    .then(function(res){if(res.ok&&res.j&&res.j.ok){say('✓ Ticket envoyé à '+to,'#3f7350');}else{say('Échec de l\'envoi'+((res.j&&res.j.error)?(' : '+res.j.error):''),'#b0512c');}})
-    .catch(function(){say('Erreur réseau — réessaie','#b0512c');});
+  // Ouvre l'app mail du téléphone avec le ticket déjà écrit (aucune configuration requise)
+  var subject='Votre ticket — Pépins Perdus';
+  var body=_saleReceiptText(s);
+  var url='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  try{window.location.href=url;}catch(e){try{window.open(url);}catch(_){}}
+  say('Ton app mail s\'ouvre avec le ticket pré-rempli — vérifie l\'adresse et appuie sur Envoyer.');
 }
 function ticketOpen(id){
   var s=_saleById(id);if(!s)return;
@@ -1891,7 +1890,7 @@ function ticketOpen(id){
     +'<div class="card">'
       +'<div style="display:flex;gap:8px;align-items:center"><input id="tk-email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" placeholder="email du client" value="'+esc(cl.email||'')+'" style="flex:1;min-width:0;padding:9px;border:1px solid #dfe3d8;border-radius:8px"><button class="save" style="margin:0;width:auto;padding:10px 14px" onclick="ticketEmailSend(\''+s.id+'\')">Envoyer</button></div>'
       +'<div id="tk-email-msg" class="hint" style="margin-top:6px"></div>'
-      +'<p class="hint" style="margin:4px 0 0">Le client reçoit son ticket détaillé par mail (expéditeur : Pépins Perdus).</p>'
+      +'<p class="hint" style="margin:4px 0 0">Tape l\'email du client puis « Envoyer » : ton app mail s\'ouvre avec le ticket déjà écrit, tu n\'as plus qu\'à appuyer sur Envoyer.</p>'
     +'</div>'
     +'<div class="sec" style="margin-top:16px">Actions</div>'
     +(s.void?'<p class="dsub">Ce ticket est déjà annulé.</p>':'<button class="ghost" style="margin-top:4px" onclick="ticketVoidFromSheet(\''+s.id+'\')">↩︎ Annuler la vente (remet le stock du site)</button>')
