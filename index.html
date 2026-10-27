@@ -455,7 +455,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.91';
+const APP_VERSION='2026.92';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1387,6 +1387,8 @@ function flushSitePending(btn){
 var SITE_PROD_URL='https://pepins-presta.pepinsperdus.workers.dev/products';
 var SITE_COMB_URL='https://pepins-presta.pepinsperdus.workers.dev/combinations';
 var SITE_RESERVED_URL='https://pepins-presta.pepinsperdus.workers.dev/reserved';
+var MAIL_URL='https://pepins-presta.pepinsperdus.workers.dev/sendmail';
+var MAIL_TOKEN='pp9k3mz7qx'; // jeton anti-abus (à définir aussi comme secret MAIL_TOKEN dans le Worker)
 var SITE={loaded:false,loading:false,ts:0,rows:[],err:null};
 function _saveSiteCache(){try{localStorage.setItem('pepins_sitecache',JSON.stringify({rows:SITE.rows,ts:SITE.ts}));}catch(e){}}
 function _hydrateSiteCache(){try{var c=JSON.parse(localStorage.getItem('pepins_sitecache')||'null');if(c&&c.rows&&c.rows.length){SITE.rows=c.rows;SITE.byName={};SITE.bySaid={};c.rows.forEach(function(x){if(x.base&&SITE.byName[normName(x.base)]==null)SITE.byName[normName(x.base)]=x;SITE.byName[normName(x.nom)]=x;SITE.bySaid[x.said]=x;});SITE.loaded=true;SITE.ts=c.ts||0;SITE.cache=true;return true;}}catch(e){}return false;}
@@ -1836,6 +1838,37 @@ function ticketsExport(){
 }
 // ---- FICHE DÉTAIL D'UN TICKET (voir / modifier le paiement / annuler / supprimer) ----
 function _saleById(id){return (CAISSE.sales||[]).filter(function(x){return x.id===id;})[0];}
+// ---- ENVOI DU TICKET PAR MAIL (via le Worker -> Mailjet) ----
+function _saleReceiptText(s){
+  var lines=(s.lines||[]).map(function(l){var lt=((+l.pu)||0)*((+l.qty)||0);return (l.qty||1)+' x '+(l.nom||'?')+'   '+ceur(lt);}).join('\n');
+  return 'PÉPINS PERDUS\n'+_frDateTime(new Date(s.ts))+'\n\n'+lines+'\n\nTOTAL TTC : '+ceur(s.total)+'\n(dont TVA '+ceur(s.tva)+' · HT '+ceur(s.ht)+')\nPaiement : '+_salePayLabel(s)+'\n\nMerci de votre visite !\nPépins Perdus';
+}
+function _saleReceiptHtml(s){
+  var rows=(s.lines||[]).map(function(l){var lt=((+l.pu)||0)*((+l.qty)||0);return '<tr><td style="padding:4px 0;font-size:14px">'+(l.qty||1)+'&times; '+esc(l.nom||'?')+'</td><td style="padding:4px 0;text-align:right;white-space:nowrap;font-size:14px">'+ceur(lt)+'</td></tr>';}).join('');
+  return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:420px;margin:0 auto;color:#2c3b2f;padding:8px">'
+    +'<h2 style="color:#2c5c3d;margin:0 0 2px">Pépins Perdus</h2>'
+    +'<div style="color:#7c8a7f;font-size:13px;margin-bottom:14px">'+_frDateTime(new Date(s.ts))+'</div>'
+    +'<table style="width:100%;border-collapse:collapse">'+rows
+    +'<tr><td style="border-top:2px solid #2c5c3d;padding-top:8px;font-weight:700;font-size:15px">Total TTC</td><td style="border-top:2px solid #2c5c3d;padding-top:8px;text-align:right;font-weight:700;font-size:15px">'+ceur(s.total)+'</td></tr>'
+    +'<tr><td style="color:#7c8a7f;font-size:12px">dont TVA</td><td style="color:#7c8a7f;font-size:12px;text-align:right">'+ceur(s.tva)+' · HT '+ceur(s.ht)+'</td></tr>'
+    +'<tr><td style="font-size:13px;padding-top:6px">Paiement</td><td style="font-size:13px;padding-top:6px;text-align:right">'+esc(_salePayLabel(s))+'</td></tr>'
+    +'</table>'
+    +'<p style="color:#3f7350;font-size:13px;margin-top:18px">Merci de votre visite 🌱</p>'
+    +'</div>';
+}
+function ticketEmailSend(id){
+  var s=_saleById(id);if(!s)return;
+  var el=document.getElementById('tk-email');var to=(el&&el.value||'').trim();
+  var msg=document.getElementById('tk-email-msg');
+  var say=function(txt,col){if(msg){msg.style.color=col||'var(--muted)';msg.textContent=txt;}};
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)){say('Adresse e-mail invalide','#b0512c');return;}
+  say('Envoi en cours…');
+  var payload={to:to,subject:'Votre ticket — Pépins Perdus',text:_saleReceiptText(s),html:_saleReceiptHtml(s),token:MAIL_TOKEN};
+  fetch(MAIL_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){return r.text().then(function(t){var j={};try{j=JSON.parse(t);}catch(e){}return {ok:r.ok,j:j};});})
+    .then(function(res){if(res.ok&&res.j&&res.j.ok){say('✓ Ticket envoyé à '+to,'#3f7350');}else{say('Échec de l\'envoi'+((res.j&&res.j.error)?(' : '+res.j.error):''),'#b0512c');}})
+    .catch(function(){say('Erreur réseau — réessaie','#b0512c');});
+}
 function ticketOpen(id){
   var s=_saleById(id);if(!s)return;
   var d=new Date(s.ts);var m=_saleModes(s);
@@ -1854,6 +1887,12 @@ function ticketOpen(id){
     +'<div class="card">'+payInputs
       +'<p class="hint" style="margin:8px 0 0">Corrige la répartition si besoin (ex. c\'était en espèces et non en carte). Le total doit faire '+ceur(s.total)+'.</p>'
       +'<button class="save" style="margin-top:10px" onclick="ticketSavePay(\''+s.id+'\')">Enregistrer le paiement</button></div>'
+    +'<div class="sec" style="margin-top:16px">Envoyer le reçu par mail</div>'
+    +'<div class="card">'
+      +'<div style="display:flex;gap:8px;align-items:center"><input id="tk-email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" placeholder="email du client" value="'+esc(cl.email||'')+'" style="flex:1;min-width:0;padding:9px;border:1px solid #dfe3d8;border-radius:8px"><button class="save" style="margin:0;width:auto;padding:10px 14px" onclick="ticketEmailSend(\''+s.id+'\')">Envoyer</button></div>'
+      +'<div id="tk-email-msg" class="hint" style="margin-top:6px"></div>'
+      +'<p class="hint" style="margin:4px 0 0">Le client reçoit son ticket détaillé par mail (expéditeur : Pépins Perdus).</p>'
+    +'</div>'
     +'<div class="sec" style="margin-top:16px">Actions</div>'
     +(s.void?'<p class="dsub">Ce ticket est déjà annulé.</p>':'<button class="ghost" style="margin-top:4px" onclick="ticketVoidFromSheet(\''+s.id+'\')">↩︎ Annuler la vente (remet le stock du site)</button>')
     +'<button class="del" style="margin-top:8px" onclick="ticketDelete(\''+s.id+'\')">Supprimer ce ticket</button>'
