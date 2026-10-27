@@ -333,6 +333,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
         <div class="sec" style="margin-top:16px">Ticket</div>
         <div class="card" id="caisse-ticket"></div>
         <div id="caisse-total" style="margin-top:10px"></div>
+        <div id="caisse-lastsale" style="margin-top:10px"></div>
         <div class="sec" style="margin-top:18px">Aujourd'hui</div>
         <div class="card" id="caisse-day"></div>
         <button class="ghost" style="margin-top:12px;color:#b0512c;border-color:#e4c3b3" onclick="caisseRefundOpen()">&#8617;&#65038; Faire un remboursement (carte / esp&egrave;ces)</button>
@@ -455,7 +456,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.93';
+const APP_VERSION='2026.94';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1576,7 +1577,7 @@ function caisseSub(w){
   ['vente','tickets','facpro','comptage'].forEach(function(k){var el=document.getElementById('caisse-sub-'+k);if(el)el.hidden=(k!==w);});
   var tb=document.getElementById('caisse-subtabs');
   if(tb)tb.innerHTML=[['vente','Vente'],['tickets','Tickets'],['facpro','Factures pro'],['comptage','Comptage']].map(function(f){return '<button class="'+(w===f[0]?'on':'')+'" onclick="caisseSub(\''+f[0]+'\')">'+f[1]+'</button>';}).join('');
-  if(w==='vente'){renderCaisseSearch();renderCaisseTicket();renderCaisseDay();}
+  if(w==='vente'){renderCaisseSearch();renderCaisseTicket();renderCaisseDay();renderLastSale();}
   else if(w==='tickets'){renderTickets();}
   else if(w==='facpro'){renderFacpro();}
   else if(w==='comptage'){renderFond();}
@@ -1708,6 +1709,7 @@ function caisseValidate(){
   }
   if(sale.pro){var cl=state.caisseClient||{};if(!(''+(cl.nom||'')).trim()){toast('Indique le nom du client pro');return;}sale.client={nom:(''+cl.nom).trim(),siret:(''+(cl.siret||'')).trim(),adresse:(''+(cl.adresse||'')).trim(),email:(''+(cl.email||'')).trim()};sale.facture=false;}
   CAISSE.sales.unshift(sale);saveCaisse();
+  state.lastSale={id:sale.id,total:sale.total,ts:sale.ts};
   state.cart=[];state.caisseRecu='';state.caissePro=false;state.caisseClient={};state.caisseMixte=false;state.caisseSplit={espece:'',cheque:'',cb:''};
   renderCaisse();
   toast('Encaissé '+ceur(total)+' ✓');
@@ -1867,6 +1869,31 @@ function ticketEmailSend(id){
   var url='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
   try{window.location.href=url;}catch(e){try{window.open(url);}catch(_){}}
   say('Ton app mail s\'ouvre avec le ticket pré-rempli — vérifie l\'adresse et appuie sur Envoyer.');
+}
+// ---- BANDEAU "dernière vente encaissée" (dans l'onglet Vente) ----
+function renderLastSale(){
+  var box=document.getElementById('caisse-lastsale');if(!box)return;
+  var ls=state.lastSale;
+  if(!ls||!ls.id||!_saleById(ls.id)){box.innerHTML='';return;}
+  box.innerHTML='<div class="card" style="background:#eef5ee;border:1px solid #cfe3cf">'
+    +'<div style="display:flex;align-items:center;gap:10px"><div style="flex:1"><b style="color:#2c5c3d">&#9989; Vente encaissée · '+ceur(ls.total)+'</b></div>'
+      +'<button class="ghost" style="margin:0;width:auto;padding:5px 9px;color:var(--muted);border-color:#cfe3cf" onclick="lastSaleDismiss()">&times;</button></div>'
+    +'<button class="save" style="margin-top:10px" onclick="receiptMailOpen(\''+ls.id+'\')">&#9993;&#65039; Envoyer le reçu par mail</button>'
+  +'</div>';
+}
+function lastSaleDismiss(){state.lastSale=null;renderLastSale();}
+function receiptMailOpen(id){
+  var s=_saleById(id);if(!s)return;var cl=s.client||{};
+  $('#sheetbody').innerHTML='<div class="grab"></div>'
+    +'<h2 style="font-size:20px;margin:0 0 2px">Envoyer le reçu par mail</h2>'
+    +'<p class="dsub">Vente de '+ceur(s.total)+' · '+_frDateTime(new Date(s.ts))+'</p>'
+    +'<div class="sec" style="margin-top:10px">Email du client</div>'
+    +'<div class="card"><div style="display:flex;gap:8px;align-items:center"><input id="tk-email" type="email" inputmode="email" autocapitalize="off" autocorrect="off" placeholder="email du client" value="'+esc(cl.email||'')+'" style="flex:1;min-width:0;padding:9px;border:1px solid #dfe3d8;border-radius:8px"><button class="save" style="margin:0;width:auto;padding:10px 14px" onclick="ticketEmailSend(\''+s.id+'\')">Envoyer</button></div>'
+      +'<div id="tk-email-msg" class="hint" style="margin-top:6px"></div>'
+      +'<p class="hint" style="margin:4px 0 0">Ton app mail s\'ouvre avec le ticket déjà écrit — tu n\'as plus qu\'à appuyer sur Envoyer.</p>'
+    +'</div>'
+    +'<button class="ghost" style="margin-top:12px" onclick="closeSheet()">Fermer</button>';
+  $('#ov').classList.add('show');
 }
 function ticketOpen(id){
   var s=_saleById(id);if(!s)return;
