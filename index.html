@@ -456,7 +456,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.94';
+const APP_VERSION='2026.95';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1863,12 +1863,22 @@ function ticketEmailSend(id){
   var el=document.getElementById('tk-email');var to=(el&&el.value||'').trim();
   var msg=document.getElementById('tk-email-msg');
   var say=function(txt,col){if(msg){msg.style.color=col||'var(--muted)';msg.textContent=txt;}};
-  // Ouvre l'app mail du téléphone avec le ticket déjà écrit (aucune configuration requise)
-  var subject='Votre ticket — Pépins Perdus';
-  var body=_saleReceiptText(s);
-  var url='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-  try{window.location.href=url;}catch(e){try{window.open(url);}catch(_){}}
-  say('Ton app mail s\'ouvre avec le ticket pré-rempli — vérifie l\'adresse et appuie sur Envoyer.');
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)){say('Adresse e-mail invalide','#b0512c');return;}
+  say('Envoi en cours…');
+  // Repli : si l'envoi direct n'est pas (encore) branché, on ouvre l'app mail avec le ticket
+  var openMailApp=function(note){
+    var url='mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent('Votre ticket — Pépins Perdus')+'&body='+encodeURIComponent(_saleReceiptText(s));
+    try{window.location.href=url;}catch(e){try{window.open(url);}catch(_){}}
+    say(note||'Ton app mail s\'ouvre avec le ticket — appuie sur Envoyer.','#8a6d1f');
+  };
+  var payload={to:to,subject:'Votre ticket — Pépins Perdus',text:_saleReceiptText(s),html:_saleReceiptHtml(s),token:MAIL_TOKEN};
+  fetch(MAIL_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){return r.text().then(function(t){var j={};try{j=JSON.parse(t);}catch(e){}return {ok:r.ok,j:j};});})
+    .then(function(res){
+      if(res.ok&&res.j&&res.j.ok){say('✓ Reçu envoyé directement à '+to,'#3f7350');}
+      else{openMailApp('Envoi direct pas encore prêt → ton app mail s\'ouvre avec le ticket.');}
+    })
+    .catch(function(){openMailApp('Envoi direct indisponible → ton app mail s\'ouvre avec le ticket.');});
 }
 // ---- BANDEAU "dernière vente encaissée" (dans l'onglet Vente) ----
 function renderLastSale(){
