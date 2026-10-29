@@ -132,16 +132,19 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
 .ac div:last-child{border-bottom:none}
 .ac div small{color:var(--muted,#7c8a7f);font-weight:500}
 .pm-cur{outline:3px solid #c99a3c;outline-offset:-3px;border-radius:12px}
-#v-pieds .search{position:sticky;top:0;z-index:8;background:var(--cream);padding-bottom:6px}
+#v-pieds .search{position:-webkit-sticky;position:sticky;top:0;z-index:8;background:var(--cream);padding-bottom:6px}
 #pieds-q{padding-right:104px}
 #pieds-nav{position:absolute;right:6px;top:6px;display:none;align-items:center;gap:3px;background:#fff;border-radius:8px}
 #pieds-nav.on{display:flex}
 #pieds-nav button{background:#3f7350;border:none;color:#fff;width:30px;height:30px;border-radius:8px;font-size:17px;font-weight:700;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
 #pieds-nav span{font-size:12px;font-weight:700;color:#4b7f52;min-width:30px;text-align:center}
 .pl-cur{outline:3px solid #c99a3c;outline-offset:-3px;border-radius:12px}
-#v-plan .search{position:sticky;top:0;z-index:8;background:var(--cream);padding-bottom:6px}
+#v-plan .search{position:fixed;left:50%;transform:translateX(-50%);width:100%;max-width:430px;box-sizing:border-box;bottom:60px;margin:0;padding:8px 15px;background:var(--cream);border-top:1px solid var(--line);box-shadow:0 -7px 20px rgba(31,61,43,.12);z-index:60}
+#v-plan .search svg{left:28px;top:20px}
+#v-plan [id^="plmatch-"]{scroll-margin-top:12px}
+#v-plan{padding-bottom:66px}
 #plan-q{padding-right:104px}
-#plan-nav{position:absolute;right:6px;top:6px;display:none;align-items:center;gap:3px;background:#fff;border-radius:8px}
+#plan-nav{position:absolute;right:21px;top:14px;display:none;align-items:center;gap:3px;background:#fff;border-radius:8px}
 #plan-nav.on{display:flex}
 #plan-nav button{background:#3f7350;border:none;color:#fff;width:30px;height:30px;border-radius:8px;font-size:17px;font-weight:700;line-height:1;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center}
 #plan-nav span{font-size:12px;font-weight:700;color:#4b7f52;min-width:30px;text-align:center}
@@ -271,7 +274,7 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
     <section class="view" id="v-plan">
       <h2 style="margin:2px 2px 4px;font-size:22px;font-weight:600">Planches de culture</h2>
       <p class="dsub">Tape une ligne pour voir les greffes de l'année qui y sont plantées.</p>
-      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c8a7f" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="plan-q" placeholder="Chercher une variété (ex. Umbellata)…" oninput="renderPlanSearch()"><div id="plan-nav"></div></div>
+      <div class="search"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c8a7f" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg><input type="search" id="plan-q" placeholder="Chercher une variété (ex. Umbellata)…" oninput="renderPlanSearch()" onfocus="_planBarFit();setTimeout(_planBarFit,220);setTimeout(_planBarFit,480)" onblur="setTimeout(_planBarFit,220)"><div id="plan-nav"></div></div>
       <div class="card" id="orchcard" style="padding:14px"><div class="orch" id="orch"></div></div>
       <div id="rangdetail"></div>
     </section>
@@ -464,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.96';
+const APP_VERSION='2026.98';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -921,12 +924,15 @@ function showRang(c){document.querySelectorAll('.orch .col').forEach(x=>x.classL
 
 // ---- PLAN : recherche variété (navigation type "plan verger") ----
 var _plIdx=0,_plTotal=0,_plQ=null;
-function _plFocus(){var cur=document.querySelector('.pl-cur');if(cur)cur.classList.remove('pl-cur');var el=document.getElementById('plmatch-'+_plIdx);if(el){el.classList.add('pl-cur');try{el.scrollIntoView({behavior:'auto',block:'center'});}catch(e){}}}
+function _plFocus(){var cur=document.querySelector('.pl-cur');if(cur)cur.classList.remove('pl-cur');var el=document.getElementById('plmatch-'+_plIdx);if(el){el.classList.add('pl-cur');try{el.scrollIntoView({behavior:'auto',block:'start'});}catch(e){}}}
 function _plUpdateNav(){var nav=document.getElementById('plan-nav');if(!nav)return;if(!_plTotal){nav.classList.remove('on');nav.innerHTML='';return;}nav.innerHTML='<button onclick="plNav(-1)" aria-label="Précédent">◀</button><span>'+(_plIdx+1)+'/'+_plTotal+'</span><button onclick="plNav(1)" aria-label="Suivant">▶</button>';nav.classList.add('on');setTimeout(_plFocus,60);}
 function plNav(d){if(!_plTotal)return;_plIdx=(_plIdx+d+_plTotal)%_plTotal;var nav=document.getElementById('plan-nav');if(nav){var sp=nav.querySelector('span');if(sp)sp.textContent=(_plIdx+1)+'/'+_plTotal;}_plFocus();}
+function _planBarFit(){var bar=document.querySelector('#v-plan .search');if(!bar)return;var plan=document.getElementById('v-plan');if(!(plan&&plan.classList.contains('on')))return;var vv=window.visualViewport;var navEl=document.querySelector('.nav');var base=(navEl&&navEl.offsetHeight)?navEl.offsetHeight:56;if(vv){var kb=Math.round(window.innerHeight-vv.height-vv.offsetTop);bar.style.bottom=((kb>2?kb:base))+'px';}else{bar.style.bottom=base+'px';}}
+try{if(window.visualViewport){window.visualViewport.addEventListener('resize',_planBarFit);window.visualViewport.addEventListener('scroll',_planBarFit);}window.addEventListener('resize',_planBarFit);}catch(_e){}
 function renderPlanSearch(){
   var inp=document.getElementById('plan-q');var q=((inp&&inp.value)||'').trim().toLowerCase();
   var orchcard=document.getElementById('orchcard');var nav=document.getElementById('plan-nav');
+  try{_planBarFit();}catch(e){}
   if(!q){_plTotal=0;_plQ=null;if(nav){nav.classList.remove('on');nav.innerHTML='';}if(orchcard)orchcard.style.display='';renderPlan();return;}
   if(orchcard)orchcard.style.display='none';
   var cols=['A','B','C','D','E','F'];var groups=[];
