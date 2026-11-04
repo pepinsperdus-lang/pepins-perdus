@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.106';
+const APP_VERSION='2026.107';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -2511,7 +2511,7 @@ function piedsRenameStart(z){piedsRenameZ=z;piedsEdit=null;renderPieds();setTime
 function piedsRenameCancel(){piedsRenameZ=null;renderPieds();}
 function piedsRenameDo(oldZ){var el=document.getElementById('pz-name');var nn=el?(el.value||'').trim():'';piedsRenameZ=null;if(!nn||nn===oldZ){renderPieds();return;}var plan=piedsEnsure();if(plan[nn]){toast('Ce nom de ligne existe déjà');renderPieds();return;}var np={};Object.keys(plan).forEach(function(k){if(k===oldZ)np[nn]=plan[k];else np[k]=plan[k];});PIEDS.plan=np;savePieds();if(piedsOpenZone===oldZ)piedsOpenZone=nn;toast('Ligne renommée');renderPieds();}
 function piedsRenameBox(z){return '<div class="card" style="padding:10px;margin:5px 0;background:#eef5ea"><div style="font-weight:700;margin-bottom:6px;font-size:13px">Renommer la ligne</div><input id="pz-name" class="inp" value="'+esc(z)+'" style="margin-bottom:8px" onkeydown="if(event.key===\'Enter\')piedsRenameDo(\''+escAttr(z)+'\')"><div style="display:flex;gap:8px"><button onclick="piedsRenameDo(\''+escAttr(z)+'\')" style="flex:1;background:#3f7350;color:#fff;border:none;border-radius:10px;padding:9px;font-weight:700;font-family:inherit">Enregistrer</button><button onclick="piedsRenameCancel()" style="background:#eef1ec;border:none;border-radius:10px;padding:9px 14px;font-family:inherit">Annuler</button></div></div>';}
-function piedsStartEdit(z,idx){piedsEdit={z:z,idx:idx};piedsAdd=null;renderPieds();}
+function piedsStartEdit(z,idx){piedsEdit={z:z,idx:idx};piedsAdd=null;renderPieds();setTimeout(function(){var e=document.getElementById('pe-nom');if(e){try{e.focus();e.select();}catch(_){}}},60);}
 function piedsStartAdd(z){var plan=piedsEnsure();if(!plan[z])plan[z]=[];plan[z].push(['','','P','']);savePieds();piedsAdd=null;piedsEdit={z:z,idx:plan[z].length-1};renderPieds();setTimeout(function(){var e=document.getElementById('pe-nom');if(e)e.focus();},60);}
 function piedsCancel(){piedsEdit=null;piedsAdd=null;renderPieds();}
 function piedsAddTypeSet(t){piedsAddType=t;renderPieds();}
@@ -2595,12 +2595,15 @@ function renderPieds(){
       if(idx.length){var ms={};idx.forEach(function(i){ms[i]=1;});zhit.push({z:z,arr:arr,L:L,ms:ms,nHits:idx.length});}});
     if(!zhit.length){list.innerHTML=emptyBox('Rien pour « '+esc(q)+' ».');return;}
     var nHitTot=zhit.reduce(function(s2,zh){return s2+zh.nHits;},0);
-    var hq='<div class="famh">Résultats<em>'+nHitTot+' · '+zhit.length+' ligne'+(zhit.length>1?'s':'')+'</em></div>';
+    var hq='<div class="famh">Résultats<em>'+nHitTot+' · '+zhit.length+' ligne'+(zhit.length>1?'s':'')+'</em></div><p class="hint" style="margin:2px 2px 8px">Touche une écriture pour la modifier ou la supprimer 🗑</p>';
     var _pmN=0;
     zhit.slice(0,40).forEach(function(zh){var L=zh.L;
       hq+='<div class="famh" style="background:linear-gradient(90deg,#e7efe3,#eef3ea)">'+esc(zh.z)+'<em>'+zh.arr.length+' plante'+(zh.arr.length>1?'s':'')+'</em></div>';
-      hq+=zh.arr.map(function(r,i){var code=(L?L:'#')+(i+1);var hit=zh.ms[i];var idA='';if(hit){idA=' id="pmatch-'+_pmN+'"';_pmN++;}
-        return '<div class="ent"'+idA+' style="'+(hit?'background:#fff7e0':'')+'"><div class="av" style="background:'+(hit?'#c99a3c':'#9fbfa6')+';font-size:12px;font-weight:700;flex:none">'+esc(code)+'</div><div class="m"><b'+(hit?' style="color:#8a6d1f"':'')+'>'+esc(niceName(r[1])||'(vide)')+'</b><span>📍 '+esc(code)+' · '+esc(zh.z)+'</span></div>'+(hit?'<span style="color:#c99a3c;font-size:16px;flex:none">◀</span>':'')+'</div>';
+      hq+=zh.arr.map(function(r,i){var code=(L?L:'#')+(i+1);var hit=zh.ms[i];
+        if(piedsEdit&&piedsEdit.z===zh.z&&piedsEdit.idx===i){return piedsFlatRow(zh.z,i,r,zh.arr.length);}
+        var idA='';if(hit){idA=' id="pmatch-'+_pmN+'"';_pmN++;}
+        var av=hit?'#c99a3c':'#9fbfa6';var nmCol=hit?' style="color:#8a6d1f"':'';
+        return '<div class="ent"'+idA+' onclick="piedsStartEdit(\''+escAttr(zh.z)+'\','+i+')" style="cursor:pointer;'+(hit?'background:#fff7e0':'')+'"><div class="av" style="background:'+av+';font-size:12px;font-weight:700;flex:none">'+esc(code)+'</div><div class="m" style="min-width:0"><b'+nmCol+'>'+esc(niceName(r[1])||'(vide)')+'</b><span>📍 '+esc(code)+' · '+esc(zh.z)+'</span></div><span style="color:'+(hit?'#c99a3c':'#c3cabf')+';font-size:15px;flex:none">✎</span></div>';
       }).join('');
     });
     if(zhit.length>40)hq+='<p class="hint" style="text-align:center;padding:8px 0">'+(zhit.length-40)+' autres lignes… précise ta recherche.</p>';
