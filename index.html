@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.111';
+const APP_VERSION='2026.112';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -3080,30 +3080,55 @@ async function fbInit(){
       var fbv=sv[k];var loc=localStorage.getItem(_FBLS[k]);
       if(fbv!=null){
         var mergedStr=_fbApplyStore(k,fbv);
-        if(mergedStr&&mergedStr!==fbv){try{_fbdb.ref('stores/'+k).set(mergedStr);}catch(e){}}
+        if(mergedStr&&mergedStr!==fbv){try{_fbTxMerge(k,JSON.parse(mergedStr));}catch(e){}}
       } else if(loc&&!_fbStoreEmptyStr(k,loc)){
-        try{_fbdb.ref('stores/'+k).set(loc);}catch(e){}
+        try{_fbTxMerge(k,JSON.parse(loc));}catch(e){}
       }
     });
     _fbRenderSoon();
     // 3) pousse les fiches locales plus recentes / absentes puis attend la fin avant d'ecouter (evite les rebonds)
     _fbReady=true;await fbSyncRecords();
-    Object.keys(_fbPending).forEach(function(k){if(k!=='records'){try{_fbdb.ref('stores/'+k).set(JSON.stringify(_fbPending[k]));}catch(e){}}});
+    Object.keys(_fbPending).forEach(function(k){if(k!=='records'){try{_fbTxMerge(k,_fbPending[k]);}catch(e){}}});
     _fbPending={};
     // 4) ecoute temps reel
     var rr=_fbdb.ref('records');
     rr.on('child_added',function(s){_fbRecordEvent(s,false);});
     rr.on('child_changed',function(s){_fbRecordEvent(s,false);});
     rr.on('child_removed',function(s){_fbRecordEvent(s,true);});
-    Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).on('value',function(s){var v=s.val();if(v==null)return;var mergedStr=_fbApplyStore(k,v);if(mergedStr&&mergedStr!==v){try{_fbdb.ref('stores/'+k).set(mergedStr);}catch(e){}}});});
+    Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).on('value',function(s){var v=s.val();if(v==null)return;var mergedStr=_fbApplyStore(k,v);if(mergedStr&&mergedStr!==v){try{_fbTxMerge(k,JSON.parse(mergedStr));}catch(e){}}});});
     try{_cloudDot();}catch(e){}
   }catch(e){_fbReady=false;setTimeout(fbInit,10000);}
+}
+// Nettoyage des tombstones (tickets/comptages/sorties supprimés) sur l'objet caisse fusionné.
+function _fbMergeCaisseTomb(obj){
+  try{
+    if(obj){
+      if(obj.sales&&obj.deleted){var _d=obj.deleted;obj.sales=obj.sales.filter(function(s){return !(s&&s.id&&_d[s.id]);});}
+      if(obj.counts&&obj.deletedC){var _dc=obj.deletedC;obj.counts=obj.counts.filter(function(c){return !(c&&c.id&&_dc[c.id]);});}
+      if(obj.sorties&&obj.deletedS){var _ds=obj.deletedS;obj.sorties=obj.sorties.filter(function(x){return !(x&&x.id&&_ds[x.id]);});}
+    }
+  }catch(e){}
+  return obj;
+}
+// Écriture SÛRE : transaction qui FUSIONNE (union) le local avec l'état cloud courant.
+// Empêche tout téléphone d'écraser les tickets d'un autre (plus de perte à l'encaissement).
+function _fbTxMerge(key,localObj){
+  if(!_fbdb||localObj==null)return;
+  try{
+    _fbdb.ref('stores/'+key).transaction(function(current){
+      var inc=null;
+      if(current!=null){ if(typeof current==='string'){try{inc=JSON.parse(current);}catch(e){inc=null;}} else {inc=current;} }
+      var merged=(inc!=null)?_fbMerge(inc,localObj):localObj;
+      if(key==='caisse')merged=_fbMergeCaisseTomb(merged);
+      return JSON.stringify(merged);
+    },function(err,committed,snap){try{_cloudDot();}catch(e){}},false);
+  }catch(e){ try{_fbdb.ref('stores/'+key).set(JSON.stringify(localObj));}catch(_){} }
 }
 function cloudPush(key,obj){
   try{
     if(_fbApplying)return;                 // ne pas re-ecrire pendant l'application d'un changement distant
     if(key==='records'){ if(_fbdb)fbSyncRecords(); else _fbPending['records']=1; return; }
-    if(_fbdb){ _fbdb.ref('stores/'+key).set(JSON.stringify(obj)); try{_cloudDot();}catch(e){} }
+    if(_fbdb){ _fbTxMerge(key,obj); }      // fusion transactionnelle (jamais d'écrasement)
     else { _fbPending[key]=obj; }
   }catch(e){}
 }
@@ -3118,11 +3143,11 @@ function _fbWake(){
     // 1) envoyer ce qui attendait (tickets saisis hors-ligne)
     try{Object.keys(_fbPending||{}).forEach(function(k){
       if(k==='records'){try{fbSyncRecords();}catch(e){}}
-      else{try{_fbdb.ref('stores/'+k).set(JSON.stringify(_fbPending[k]));}catch(e){}}
+      else{try{_fbTxMerge(k,_fbPending[k]);}catch(e){}}
     });_fbPending={};}catch(e){}
     // 2) re-tirer immédiatement l'état du cloud (au cas où l'écoute était gelée en arrière-plan)
     try{Object.keys(_FBLS).forEach(function(k){
-      _fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;var m=_fbApplyStore(k,v);if(m&&m!==v){try{_fbdb.ref('stores/'+k).set(m);}catch(e){}}}).catch(function(){});
+      _fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;var m=_fbApplyStore(k,v);if(m&&m!==v){try{_fbTxMerge(k,JSON.parse(m));}catch(e){}}}).catch(function(){});
     });}catch(e){}
     try{_cloudDot();}catch(e){}
   }catch(e){}
