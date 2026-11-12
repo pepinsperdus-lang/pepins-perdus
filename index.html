@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.113';
+const APP_VERSION='2026.114';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1893,7 +1893,8 @@ function renderTickets(){
   var titles={jour:'Aujourd\'hui',semaine:'Cette semaine',mois:'Ce mois',annee:'Cette année',tout:'Tout l\'historique'};
   var payLbl={all:'',espece:' · Espèces',cheque:' · Chèque',cb:' · Carte',vir:' · Virement'};
   var sumEl=document.getElementById('tickets-summary');
-  if(sumEl)sumEl.innerHTML='<div class="mrow" style="font-size:18px;font-weight:700"><span>'+(r.label||titles[per]||'')+(payLbl[pay]||'')+' · '+live.length+' vente'+(live.length>1?'s':'')+'</span><b>'+ceur(tot)+'</b></div>'
+  if(sumEl)sumEl.innerHTML='<div id="tk-syncbar" style="border-bottom:1px solid #eef1ea;padding-bottom:7px;margin-bottom:7px">'+_syncBarHtml()+'</div>'
+    +'<div class="mrow" style="font-size:18px;font-weight:700"><span>'+(r.label||titles[per]||'')+(payLbl[pay]||'')+' · '+live.length+' vente'+(live.length>1?'s':'')+'</span><b>'+ceur(tot)+'</b></div>'
     +'<div class="mrow" style="font-size:13px;color:'+(pay==='espece'?'#2c5c3d':'var(--muted)')+';cursor:pointer" onclick="ticketsSetPay(\'espece\')"><span>Espèces</span><b>'+ceur(by.espece)+'</b></div>'
     +'<div class="mrow" style="font-size:13px;color:'+(pay==='cheque'?'#2c5c3d':'var(--muted)')+';cursor:pointer" onclick="ticketsSetPay(\'cheque\')"><span>Chèque</span><b>'+ceur(by.cheque)+'</b></div>'
     +'<div class="mrow" style="font-size:13px;color:'+(pay==='cb'?'#2c5c3d':'var(--muted)')+';cursor:pointer" onclick="ticketsSetPay(\'cb\')"><span>Carte</span><b>'+ceur(by.cb)+'</b></div>'
@@ -2976,7 +2977,23 @@ function _bytesFromB64(b64){var bin=atob(b64),a=new Uint8Array(bin.length);for(v
 async function _gzB64(str){var cs=new CompressionStream('gzip');var buf=await new Response(new Blob([str]).stream().pipeThrough(cs)).arrayBuffer();return _b64FromBytes(new Uint8Array(buf));}
 async function _gunzipB64(b64){var ds=new DecompressionStream('gzip');var buf=await new Response(new Blob([_bytesFromB64(b64)]).stream().pipeThrough(ds)).arrayBuffer();return new TextDecoder().decode(buf);}
 function _cloudPost(key,val){var body='k='+encodeURIComponent(key)+'&v='+encodeURIComponent(val);return fetch(CLOUD_W,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},body:body,keepalive:true});}
-function _cloudDot(){var d=document.getElementById('cloud-dot');if(d){d.style.background='#3f7350';setTimeout(function(){if(d)d.style.background='#c3cabb';},900);}}
+function _cloudDot(){window._lastSync=Date.now();var d=document.getElementById('cloud-dot');if(d){d.style.background='#3f7350';setTimeout(function(){if(d)d.style.background='#c3cabb';},900);}var sb=document.getElementById('tk-syncbar');if(sb){try{sb.innerHTML=_syncBarHtml();}catch(e){}}}
+// Rafraîchissement manuel : force un nouveau tirage du cloud + ré-affichage.
+function caisseSyncNow(){
+  try{if(_fbdb){Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;var m=_fbApplyStore(k,v);if(m&&m!==v){try{_fbTxMerge(k,JSON.parse(m));}catch(e){}}}).catch(function(){});});}}catch(e){}
+  try{_fbWake();}catch(e){}
+  try{refreshCurrent();}catch(e){}
+  try{toast('Synchronisation en cours…');}catch(e){}
+}
+function _syncBarHtml(){
+  var ok=(typeof _fbdb!=='undefined'&&!!_fbdb);
+  var ls=window._lastSync?('maj '+(function(d){return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);})(new Date(window._lastSync))):'—';
+  var ver=(typeof APP_VERSION!=='undefined')?APP_VERSION:'';
+  return '<div class="mrow" style="font-size:12px;color:var(--muted);align-items:center;gap:6px">'
+    +'<span>'+(ok?'🟢 Synchro active':'🟠 Hors-ligne')+' · '+ls+' · v'+ver+'</span>'
+    +'<button class="ghost" style="margin:0 0 0 auto;width:auto;padding:5px 11px" onclick="caisseSyncNow()">↻ Rafraîchir</button>'
+    +'</div>';
+}
 async function _cloudPushNow(key,obj){
   try{
     var json=JSON.stringify(obj);
@@ -3189,6 +3206,8 @@ try{document.addEventListener('visibilitychange',function(){if(!document.hidden)
 try{window.addEventListener('focus',function(){_fbWake();});}catch(e){}
 try{window.addEventListener('pageshow',function(){_fbWake();_checkUpdate();});}catch(e){}
 try{window.addEventListener('online',function(){_fbWake();_checkUpdate();});}catch(e){}
+// Rafraîchissement automatique pendant que la caisse est ouverte (re-tire le cloud toutes les 20 s).
+try{setInterval(function(){try{if(document.hidden)return;var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');if(cur!=='caisse')return;_fbWake();}catch(e){}},20000);}catch(e){}
 try{setTimeout(_checkUpdate,3500);}catch(e){}
 function _cloudGet(key){return fetch(CLOUD_R+'?k='+encodeURIComponent(key)+'&t='+Date.now()).then(function(r){return r.text();}).catch(function(){return '';});}
 async function _cloudReadKey(key){
