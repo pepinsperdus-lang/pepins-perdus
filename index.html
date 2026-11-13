@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.114';
+const APP_VERSION='2026.115';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -2989,10 +2989,14 @@ function _syncBarHtml(){
   var ok=(typeof _fbdb!=='undefined'&&!!_fbdb);
   var ls=window._lastSync?('maj '+(function(d){return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);})(new Date(window._lastSync))):'—';
   var ver=(typeof APP_VERSION!=='undefined')?APP_VERSION:'';
-  return '<div class="mrow" style="font-size:12px;color:var(--muted);align-items:center;gap:6px">'
-    +'<span>'+(ok?'🟢 Synchro active':'🟠 Hors-ligne')+' · '+ls+' · v'+ver+'</span>'
+  var err=window._fbErr||'';var stage=window._fbStage||'';
+  var state=ok?'🟢 Synchro active':(stage?('🟠 Connexion… ('+stage+')'):'🟠 Hors-ligne');
+  var line1='<div class="mrow" style="font-size:12px;color:var(--muted);align-items:center;gap:6px">'
+    +'<span>'+state+' · '+ls+' · v'+ver+'</span>'
     +'<button class="ghost" style="margin:0 0 0 auto;width:auto;padding:5px 11px" onclick="caisseSyncNow()">↻ Rafraîchir</button>'
     +'</div>';
+  if(!ok&&err){line1+='<div style="font-size:11px;color:#b0512c;margin-top:3px">⚠️ '+esc(err)+' — vérifie Internet et l\'heure du téléphone, puis Rafraîchir.</div>';}
+  return line1;
 }
 async function _cloudPushNow(key,obj){
   try{
@@ -3087,10 +3091,14 @@ function fbSyncRecords(){
 }
 async function fbInit(){
   try{
+    window._fbErr='';window._fbStage='chargement…';
     await _fbEnsureSdk();
     if(!firebase.apps.length)firebase.initializeApp(FBCFG);
-    try{firebase.appCheck().activate(new firebase.appCheck.ReCaptchaEnterpriseProvider('6LfxmL4tAAAAAG30iFxuY9R7XjUfqzisi9KiX0OG'),true);}catch(e){}   // App Check reCAPTCHA Enterprise : seule l'app reelle peut acceder a la base
-    try{await firebase.auth().signInAnonymously();}catch(e){}   // connexion anonyme (requise par les regles de securite)
+    window._fbStage='sécurité';
+    try{firebase.appCheck().activate(new firebase.appCheck.ReCaptchaEnterpriseProvider('6LfxmL4tAAAAAG30iFxuY9R7XjUfqzisi9KiX0OG'),true);}catch(e){window._fbErr='appcheck';}   // App Check reCAPTCHA Enterprise : seule l'app reelle peut acceder a la base
+    window._fbStage='connexion';
+    try{await firebase.auth().signInAnonymously();}catch(e){window._fbErr='auth:'+((e&&e.code)||'');}   // connexion anonyme (requise par les regles de securite)
+    window._fbStage='lecture';
     _fbdb=firebase.database();window._fbdb=_fbdb;
     // 1) reconcile initial des fiches (adopte le cloud sauf si local plus recent ; jamais de perte)
     var snap=await _fbdb.ref('records').get();var fbMap=snap.val()||{};
@@ -3125,8 +3133,9 @@ async function fbInit(){
     rr.on('child_changed',function(s){_fbRecordEvent(s,false);});
     rr.on('child_removed',function(s){_fbRecordEvent(s,true);});
     Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).on('value',function(s){var v=s.val();if(v==null)return;var mergedStr=_fbApplyStore(k,v);if(mergedStr&&mergedStr!==v){try{_fbTxMerge(k,JSON.parse(mergedStr));}catch(e){}}});});
+    window._fbStage='';window._fbErr='';
     try{_cloudDot();}catch(e){}
-  }catch(e){_fbReady=false;setTimeout(fbInit,10000);}
+  }catch(e){_fbReady=false;window._fbErr=(window._fbStage||'init')+':'+((e&&(e.code||e.message))||e);try{var sb=document.getElementById('tk-syncbar');if(sb)sb.innerHTML=_syncBarHtml();}catch(_){}setTimeout(fbInit,5000);}
 }
 // Nettoyage des tombstones (tickets/comptages/sorties supprimés) sur l'objet caisse fusionné.
 function _fbMergeCaisseTomb(obj){
