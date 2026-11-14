@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.119';
+const APP_VERSION='2026.120';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1609,7 +1609,7 @@ function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v
 function _caissePrune(){var ch=false;var d=(CAISSE&&CAISSE.deleted);if(d){var b=(CAISSE.sales||[]).length;CAISSE.sales=(CAISSE.sales||[]).filter(function(s){return !(s&&s.id&&d[s.id]);});if((CAISSE.sales||[]).length!==b)ch=true;}var dc=(CAISSE&&CAISSE.deletedC);if(dc){var b2=(CAISSE.counts||[]).length;CAISSE.counts=(CAISSE.counts||[]).filter(function(c){return !(c&&c.id&&dc[c.id]);});if((CAISSE.counts||[]).length!==b2)ch=true;}var ds=(CAISSE&&CAISSE.deletedS);if(ds&&CAISSE.sorties){var b3=CAISSE.sorties.length;CAISSE.sorties=CAISSE.sorties.filter(function(x){return !(x&&x.id&&ds[x.id]);});if(CAISSE.sorties.length!==b3)ch=true;}return ch;}
 function _caisseDrop(ids){if(!CAISSE.deleted)CAISSE.deleted={};var now=Date.now();var m={};(ids||[]).forEach(function(id){if(id){CAISSE.deleted[id]=now;m[id]=1;}});CAISSE.sales=(CAISSE.sales||[]).filter(function(s){return !(s&&s.id&&m[s.id]);});}
 function _caisseDropCount(id){if(!CAISSE.deletedC)CAISSE.deletedC={};if(id)CAISSE.deletedC[id]=Date.now();CAISSE.counts=(CAISSE.counts||[]).filter(function(c){return !(c&&c.id&&c.id===id);});}
-function saveCaisse(){try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{cloudPush('caisse',CAISSE);}catch(e){}}
+function saveCaisse(){try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{cloudPush('caisse',CAISSE);}catch(e){}try{if(typeof fbSyncSales==='function')fbSyncSales();}catch(e){}}
 function ceur(x){x=(+x)||0;var r=Math.round(x*100)/100;if(r===Math.round(r))return String(Math.round(r))+' €';return r.toFixed(2).replace('.',',')+' €';}
 // Prix pour un champ d'édition : pas de décimales inutiles (15 et non 15,00 ; 1,5 reste 1,5 ; 0 -> vide)
 function _pedit(x){x=(+x)||0;if(x===0)return '';var r=Math.round(x*100)/100;if(r===Math.round(r))return String(Math.round(r));return (''+r).replace('.',',');}
@@ -3058,7 +3058,7 @@ function _keyLS(k){return _KEYLS[k]||k;}
 function _now(){try{return Date.now();}catch(e){return 0;}}
 /* ===================== SYNCHRO FIREBASE TEMPS REEL (remplace Make) ===================== */
 var FBCFG={apiKey:"AIzaSyAfocVRjYDsfYIHistn3O-sPlLjho5Ut7w",authDomain:"pepins-perdus.firebaseapp.com",databaseURL:"https://pepins-perdus-default-rtdb.europe-west1.firebasedatabase.app",projectId:"pepins-perdus",storageBucket:"pepins-perdus.firebasestorage.app",messagingSenderId:"216610608323",appId:"1:216610608323:web:ccbf4d2d1d28f22b373e76"};
-var _fbdb=null,_fbLast={},_fbReady=false,_fbPending={},_fbApplying=false,_fbRenderT=null;
+var _fbdb=null,_fbLast={},_fbReady=false,_fbPending={},_fbApplying=false,_fbRenderT=null,_fbSalesLast={};
 var _FBLS={elevage:'pepins_elevage_v1',todo:'pepins_todo_v1',arros:'pepins_arros_v1',sem:SEMKEY,pieds:'pepins_pieds_v1',cmd:'pepins_cmd_v1',caisse:'pepins_caisse_v1',uservars:UVKEY};
 function _fbLoadScript(src){return new Promise(function(res,rej){var s=document.createElement('script');s.src=src;s.onload=res;s.onerror=function(){rej(new Error('load '+src));};document.head.appendChild(s);});}
 async function _fbEnsureSdk(){if(window.firebase&&window.firebase.database&&window.firebase.auth&&window.firebase.appCheck)return;await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js');await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-app-check-compat.js');await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js');await _fbLoadScript('https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js');}
@@ -3125,6 +3125,47 @@ function fbSyncRecords(){
   if(n){try{return _fbdb.ref().update(upd).then(function(){try{_cloudDot();}catch(e){}});}catch(e){}}
   return Promise.resolve();
 }
+// ===== SYNCHRO DES VENTES "UNE PAR UNE" (csales/<id>) — canal fiable, comme les fiches =====
+function _caisseSaveLocalRender(){try{if(CAISSE&&CAISSE.sales)_fbSortSales(CAISSE.sales);}catch(e){}try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{_fbRenderSoon();}catch(e){}}
+function _fbSaleUpsert(id,sale){
+  if(!CAISSE.sales)CAISSE.sales=[];
+  var arr=CAISSE.sales,i=-1;for(var k=0;k<arr.length;k++){if(arr[k]&&arr[k].id===id){i=k;break;}}
+  if(sale===null){if(i>=0){arr.splice(i,1);return true;}return false;}
+  if(i>=0){if(JSON.stringify(arr[i])===JSON.stringify(sale))return false;arr[i]=sale;}
+  else{arr.push(sale);}
+  return true;
+}
+function _fbSaleEvent(snap,removed){
+  try{
+    var id=snap.key;var del=(CAISSE&&CAISSE.deleted)||{};var changed=false;
+    if(removed){changed=_fbSaleUpsert(id,null);delete _fbSalesLast[id];}
+    else{
+      var js=snap.val();if(_fbSalesLast[id]===js)return;
+      var rec=null;try{rec=JSON.parse(js);}catch(e){return;}if(!rec)return;
+      _fbSalesLast[id]=js;
+      if(del[id]){ // vente supprimée ailleurs : on ne la ressuscite pas, et on nettoie l'enfant
+        try{if(_fbdb)_fbdb.ref('csales/'+id).set(null);}catch(e){}
+        changed=_fbSaleUpsert(id,null);
+      } else { changed=_fbSaleUpsert(id,rec); }
+    }
+    if(changed)_caisseSaveLocalRender();
+  }catch(e){}
+}
+// pousse (par enfant) les ventes locales modifiées/ajoutées/supprimées
+function fbSyncSales(){
+  if(!_fbdb){_fbPending['__sales']=1;return;}
+  try{
+    var del=(CAISSE&&CAISSE.deleted)||{};
+    var cur={};(CAISSE.sales||[]).forEach(function(s){if(s&&s.id&&!del[s.id])cur[s.id]=JSON.stringify(s);});
+    var upd={},n=0,id;
+    for(id in cur){if(_fbSalesLast[id]!==cur[id]){upd['csales/'+id]=cur[id];n++;}}
+    for(id in _fbSalesLast){if(!(id in cur)){upd['csales/'+id]=null;n++;}}
+    // supprime aussi côté cloud les ventes marquées supprimées localement
+    for(id in del){if(_fbSalesLast[id]!==undefined){upd['csales/'+id]=null;}}
+    _fbSalesLast=cur;
+    if(n||Object.keys(upd).length){try{_fbdb.ref().update(upd).then(function(){try{_cloudDot();}catch(e){}});}catch(e){}}
+  }catch(e){}
+}
 async function fbInit(){
   try{
     window._fbErr='';window._fbStage='chargement…';
@@ -3177,10 +3218,19 @@ async function fbInit(){
       rr.on('child_changed',function(s){_fbRecordEvent(s,false);});
       rr.on('child_removed',function(s){_fbRecordEvent(s,true);});
     }catch(e){}
+    // 3bis) VENTES une par une (csales) — canal fiable sur mobile, reçoit chaque ticket séparément
+    try{
+      var cs=_fbdb.ref('csales');
+      cs.on('child_added',function(s){_fbSaleEvent(s,false);});
+      cs.on('child_changed',function(s){_fbSaleEvent(s,false);});
+      cs.on('child_removed',function(s){_fbSaleEvent(s,true);});
+    }catch(e){}
+    // seed : pousse une seule fois les ventes locales absentes du cloud (après que les enfants reçus aient rempli _fbSalesLast)
+    try{setTimeout(function(){try{fbSyncSales();}catch(e){}},6000);}catch(e){}
     // 4) pousse les fiches locales plus récentes / absentes + la file d'attente hors-ligne
     _fbReady=true;
     try{await fbSyncRecords();}catch(e){}
-    Object.keys(_fbPending).forEach(function(k){if(k!=='records'){try{_fbTxMerge(k,_fbPending[k]);}catch(e){}}});
+    Object.keys(_fbPending).forEach(function(k){if(k==='records'){try{fbSyncRecords();}catch(e){}}else if(k==='__sales'){/* fait plus bas */}else{try{_fbTxMerge(k,_fbPending[k]);}catch(e){}}});
     _fbPending={};
     // Réconciliation UNIQUE au démarrage : remonte une seule fois les ventes locales que le cloud n'aurait pas
     // (ventes faites hors-ligne). Grâce à l'ordre déterministe, c'est sans effet si rien de nouveau — jamais de boucle.
@@ -3237,8 +3287,10 @@ function _fbWake(){
     // 1) envoyer ce qui attendait (tickets saisis hors-ligne)
     try{Object.keys(_fbPending||{}).forEach(function(k){
       if(k==='records'){try{fbSyncRecords();}catch(e){}}
+      else if(k==='__sales'){try{fbSyncSales();}catch(e){}}
       else{try{_fbTxMerge(k,_fbPending[k]);}catch(e){}}
     });_fbPending={};}catch(e){}
+    try{fbSyncSales();}catch(e){}
     // 2) re-tirer immédiatement l'état du cloud (au cas où l'écoute était gelée en arrière-plan)
     try{Object.keys(_FBLS).forEach(function(k){
       _fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;_fbApplyStore(k,v);}).catch(function(){});
