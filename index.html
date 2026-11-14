@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.116';
+const APP_VERSION='2026.117';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1845,7 +1845,7 @@ function renderCaisseDay(){
   var today=(CAISSE.sales||[]).filter(function(s){return _caisseSameDay(s.ts)&&!s.void;});
   if(!today.length){
     var _ts=(CAISSE.sales||[]).length;var _cx=(typeof _fbdb!=='undefined'&&!!_fbdb);
-    if(_ts===0 && !_cx){
+    if(_ts===0 && (!_cx || window._fbErr)){
       box.innerHTML=_bar+'<div class="card" style="background:#fff6ef;border:1px solid #f0d9c7;text-align:center;padding:16px">'
         +'<div style="font-size:15px;font-weight:700;color:#b0512c;margin-bottom:4px">⏳ Connexion au cloud…</div>'
         +'<p class="hint" style="margin:0 0 10px">Tes ventes sont en sécurité en ligne. Ce téléphone ne les a pas encore reçues.'+(window._fbErr?('<br><b>Détail : '+esc(window._fbErr)+'</b>'):'')+'</p>'
@@ -1922,7 +1922,7 @@ function renderTickets(){
     } else {
       var _totalSales=(CAISSE.sales||[]).length;
       var _connected=(typeof _fbdb!=='undefined'&&!!_fbdb);
-      if(_totalSales===0 && !_connected){
+      if(_totalSales===0 && (!_connected || window._fbErr)){
         listEl.innerHTML='<div class="card" style="background:#fff6ef;border:1px solid #f0d9c7;text-align:center;padding:16px">'
           +'<div style="font-size:15px;font-weight:700;color:#b0512c;margin-bottom:4px">⏳ Connexion au cloud…</div>'
           +'<p class="hint" style="margin:0 0 10px">Tes ventes sont en sécurité en ligne. Ce téléphone ne les a pas encore reçues.'+(window._fbErr?('<br><b>Détail : '+esc(window._fbErr)+'</b>'):'')+'</p>'
@@ -3134,39 +3134,53 @@ async function fbInit(){
     try{await firebase.auth().signInAnonymously();}catch(e){window._fbErr='auth:'+((e&&e.code)||'');}   // connexion anonyme (requise par les regles de securite)
     window._fbStage='lecture';
     _fbdb=firebase.database();window._fbdb=_fbdb;
-    // 1) reconcile initial des fiches (adopte le cloud sauf si local plus recent ; jamais de perte)
-    var snap=await _fbdb.ref('records').get();var fbMap=snap.val()||{};
-    var byId={};(state.records||[]).forEach(function(r){if(r&&r.id)byId[r.id]=r;});
-    var merged=[],seen={};
-    Object.keys(fbMap).forEach(function(id){
-      var frec=null;try{frec=JSON.parse(fbMap[id]);}catch(e){}if(!frec)return;seen[id]=1;
-      var lrec=byId[id];merged.push((lrec&&(lrec.mt||0)>(frec.mt||0))?lrec:frec);
-      _fbLast[id]=fbMap[id];
-    });
-    (state.records||[]).forEach(function(r){if(r&&r.id&&!seen[r.id])merged.push(r);});
-    state.records=merged;try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){}
-    // 2) stores initiaux : FUSION local+cloud (union) ; on renvoie la fusion si elle contient des elements que le cloud n'a pas. Aucune liste ne peut retrecir.
-    var ss=await _fbdb.ref('stores').get();var sv=ss.val()||{};
+    // 1) STORES (dont la CAISSE) : un écouteur INDÉPENDANT par store, attaché en premier.
+    //    Chacun se charge seul via son propre écouteur temps réel : un store lourd (caisse)
+    //    ou un échec de lecture ne peut plus empêcher les autres de se charger, ni l'inverse.
+    //    La 1re remontée de l'écouteur sert de chargement initial (plus de gros "get" bloquant).
     Object.keys(_FBLS).forEach(function(k){
-      var fbv=sv[k];var loc=localStorage.getItem(_FBLS[k]);
-      if(fbv!=null){
-        var mergedStr=_fbApplyStore(k,fbv);
-        if(mergedStr&&mergedStr!==fbv){try{_fbTxMerge(k,JSON.parse(mergedStr));}catch(e){}}
-      } else if(loc&&!_fbStoreEmptyStr(k,loc)){
-        try{_fbTxMerge(k,JSON.parse(loc));}catch(e){}
-      }
+      try{
+        _fbdb.ref('stores/'+k).on('value',function(s){
+          try{
+            var v=s.val();
+            if(v==null){ // le cloud n'a pas (encore) ce store : on pousse le local s'il n'est pas vide
+              var loc=localStorage.getItem(_FBLS[k]);
+              if(loc&&!_fbStoreEmptyStr(k,loc)){try{_fbTxMerge(k,JSON.parse(loc));}catch(e){}}
+              return;
+            }
+            var mergedStr=_fbApplyStore(k,v);
+            if(mergedStr&&mergedStr!==v){try{_fbTxMerge(k,JSON.parse(mergedStr));}catch(e){}}
+            window._fbErr='';try{_cloudDot();}catch(e){}
+          }catch(e){}
+        },function(err){ try{window._fbErr=k+':'+((err&&err.code)||'lecture refusée');var sb=document.getElementById('tk-syncbar');if(sb)sb.innerHTML=_syncBarHtml();}catch(e){} });
+      }catch(e){}
     });
+    // 2) FICHES (records) : réconciliation initiale (si elle échoue, l'écoute ci-dessous rattrape).
+    try{
+      var snap=await _fbdb.ref('records').get();var fbMap=snap.val()||{};
+      var byId={};(state.records||[]).forEach(function(r){if(r&&r.id)byId[r.id]=r;});
+      var merged=[],seen={};
+      Object.keys(fbMap).forEach(function(id){
+        var frec=null;try{frec=JSON.parse(fbMap[id]);}catch(e){}if(!frec)return;seen[id]=1;
+        var lrec=byId[id];merged.push((lrec&&(lrec.mt||0)>(frec.mt||0))?lrec:frec);
+        _fbLast[id]=fbMap[id];
+      });
+      (state.records||[]).forEach(function(r){if(r&&r.id&&!seen[r.id])merged.push(r);});
+      state.records=merged;try{localStorage.setItem(KEY,JSON.stringify(state.records));}catch(e){}
+    }catch(e){}
     _fbRenderSoon();
-    // 3) pousse les fiches locales plus recentes / absentes puis attend la fin avant d'ecouter (evite les rebonds)
-    _fbReady=true;await fbSyncRecords();
+    // 3) écoute temps réel des fiches
+    try{
+      var rr=_fbdb.ref('records');
+      rr.on('child_added',function(s){_fbRecordEvent(s,false);});
+      rr.on('child_changed',function(s){_fbRecordEvent(s,false);});
+      rr.on('child_removed',function(s){_fbRecordEvent(s,true);});
+    }catch(e){}
+    // 4) pousse les fiches locales plus récentes / absentes + la file d'attente hors-ligne
+    _fbReady=true;
+    try{await fbSyncRecords();}catch(e){}
     Object.keys(_fbPending).forEach(function(k){if(k!=='records'){try{_fbTxMerge(k,_fbPending[k]);}catch(e){}}});
     _fbPending={};
-    // 4) ecoute temps reel
-    var rr=_fbdb.ref('records');
-    rr.on('child_added',function(s){_fbRecordEvent(s,false);});
-    rr.on('child_changed',function(s){_fbRecordEvent(s,false);});
-    rr.on('child_removed',function(s){_fbRecordEvent(s,true);});
-    Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).on('value',function(s){var v=s.val();if(v==null)return;var mergedStr=_fbApplyStore(k,v);if(mergedStr&&mergedStr!==v){try{_fbTxMerge(k,JSON.parse(mergedStr));}catch(e){}}});});
     window._fbStage='';window._fbErr='';
     try{_cloudDot();}catch(e){}
   }catch(e){_fbReady=false;window._fbErr=(window._fbStage||'init')+':'+((e&&(e.code||e.message))||e);try{var sb=document.getElementById('tk-syncbar');if(sb)sb.innerHTML=_syncBarHtml();}catch(_){}setTimeout(fbInit,5000);}
