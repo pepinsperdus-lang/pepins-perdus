@@ -385,8 +385,6 @@ select.inp{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.
         <button class="save" style="margin-top:12px" onclick="fondSaveCount()">Enregistrer le comptage</button>
         <div class="sec" style="margin-top:18px">Base de caisse</div>
         <div class="card" id="fond-base"></div>
-        <div class="sec" style="margin-top:18px">Nettoyage des esp&egrave;ces</div>
-        <div class="card" id="fond-clearcash"></div>
         <div class="sec" style="margin-top:18px">Historique des comptages</div>
         <div class="card" id="fond-hist"></div>
       </div>
@@ -467,7 +465,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.120';
+const APP_VERSION='2026.121';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -2076,8 +2074,7 @@ function ticketOpen(id){
     +'</div>'
     +'<div class="sec" style="margin-top:16px">Actions</div>'
     +(s.void?'<p class="dsub">Ce ticket est déjà annulé.</p>':'<button class="ghost" style="margin-top:4px" onclick="ticketVoidFromSheet(\''+s.id+'\')">↩︎ Annuler la vente (remet le stock du site)</button>')
-    +'<button class="del" style="margin-top:8px" onclick="ticketDelete(\''+s.id+'\')">Supprimer ce ticket</button>'
-    +'<p class="hint" style="margin-top:6px">« Annuler » = la vente n\'a pas eu lieu / rendu → le stock est remis. « Supprimer » = retire juste le ticket (le stock n\'est PAS remis).</p>';
+    +'<p class="hint" style="margin-top:6px">Les tickets ne peuvent pas être supprimés (sécurité comptable). Pour une vente qui n\'a pas eu lieu ou un rendu, utilise « Annuler » : le ticket reste tracé comme annulé et le stock du site est remis.</p>';
   $('#ov').classList.add('show');
 }
 function ticketSavePay(id){
@@ -2095,10 +2092,8 @@ function _dtLocal(ts){var d=new Date(ts||Date.now());return d.getFullYear()+'-'+
 function ticketSaveTime(id){var s=_saleById(id);if(!s)return;var el=document.getElementById('tk-dt');var v=el&&el.value;if(!v){toast('Choisis une date et une heure');return;}var t=new Date(v).getTime();if(isNaN(t)){toast('Date invalide');return;}s.ts=t;saveCaisse();try{renderCaisse();}catch(e){}ticketOpen(id);toast('Date du ticket mise à jour ✓');}
 function ticketVoidFromSheet(id){closeSheet();caisseVoid(id);}
 function ticketDelete(id){
-  var s=_saleById(id);if(!s)return;
-  if(!window.confirm('Supprimer définitivement ce ticket de '+ceur(s.total)+' ?\n\nLe stock du site ne sera PAS remis (à utiliser pour nettoyer, pas pour une vente annulée).'))return;
-  _caisseDrop([id]);
-  saveCaisse();try{renderCaisse();}catch(e){}closeSheet();toast('Ticket supprimé définitivement');
+  // SÉCURITÉ COMPTABLE : la suppression de ticket est désactivée. Utiliser « Annuler » (le ticket reste tracé).
+  try{toast('Suppression désactivée — utilise « Annuler la vente »');}catch(e){}
 }
 // ---- MODIFICATION DES ARTICLES D'UN TICKET (correction d'erreurs de caisse) ----
 function _tkRecalc(lines,remise){
@@ -2494,6 +2489,8 @@ function cashSelectAll(v){if(!state.cashSel)state.cashSel={};_cashOnlySales().fo
 function cashSetBefore(v){state.cashBefore=v||'';state.cashSel={};renderClearCash();}
 function renderClearCash(){
   var ccbox=document.getElementById('fond-clearcash');if(!ccbox)return;
+  // SÉCURITÉ COMPTABLE : la suppression de tickets est désactivée. On n'affiche plus cet outil.
+  ccbox.innerHTML='';return;
   var last=(CAISSE.counts&&CAISSE.counts[0])||null;
   var beforeTs=_cashBeforeTs();
   var col=_cashOnlySales();
@@ -2523,6 +2520,8 @@ function renderClearCash(){
     +'<p class="hint" style="margin-top:6px">Action irr&eacute;versible &mdash; le stock du site n\'est pas remis.</p>';
 }
 function caisseClearCash(){
+  // SÉCURITÉ COMPTABLE : suppression de tickets désactivée.
+  try{toast('Suppression désactivée — les tickets sont conservés');}catch(e){}return;
   var col=_cashOnlySales();
   var list=col.filter(function(s){return _cashSelId(s.id);});
   if(!list.length){toast('Aucun ticket sélectionné');return;}
@@ -3137,18 +3136,13 @@ function _fbSaleUpsert(id,sale){
 }
 function _fbSaleEvent(snap,removed){
   try{
-    var id=snap.key;var del=(CAISSE&&CAISSE.deleted)||{};var changed=false;
-    if(removed){changed=_fbSaleUpsert(id,null);delete _fbSalesLast[id];}
-    else{
-      var js=snap.val();if(_fbSalesLast[id]===js)return;
-      var rec=null;try{rec=JSON.parse(js);}catch(e){return;}if(!rec)return;
-      _fbSalesLast[id]=js;
-      if(del[id]){ // vente supprimée ailleurs : on ne la ressuscite pas, et on nettoie l'enfant
-        try{if(_fbdb)_fbdb.ref('csales/'+id).set(null);}catch(e){}
-        changed=_fbSaleUpsert(id,null);
-      } else { changed=_fbSaleUpsert(id,rec); }
-    }
-    if(changed)_caisseSaveLocalRender();
+    if(removed)return; // SÉCURITÉ : les tickets ne sont jamais supprimés → on ignore tout retrait
+    var id=snap.key;var del=(CAISSE&&CAISSE.deleted)||{};
+    var js=snap.val();if(_fbSalesLast[id]===js)return;
+    var rec=null;try{rec=JSON.parse(js);}catch(e){return;}if(!rec)return;
+    _fbSalesLast[id]=js;
+    if(del[id])return; // historiquement marqué supprimé : on ne le ré-affiche pas, mais on ne touche à rien d'autre
+    if(_fbSaleUpsert(id,rec))_caisseSaveLocalRender();
   }catch(e){}
 }
 // pousse (par enfant) les ventes locales modifiées/ajoutées/supprimées
@@ -3156,14 +3150,11 @@ function fbSyncSales(){
   if(!_fbdb){_fbPending['__sales']=1;return;}
   try{
     var del=(CAISSE&&CAISSE.deleted)||{};
+    // SÉCURITÉ : on n'envoie QUE des ajouts / mises à jour. Jamais de suppression de ticket.
     var cur={};(CAISSE.sales||[]).forEach(function(s){if(s&&s.id&&!del[s.id])cur[s.id]=JSON.stringify(s);});
     var upd={},n=0,id;
-    for(id in cur){if(_fbSalesLast[id]!==cur[id]){upd['csales/'+id]=cur[id];n++;}}
-    for(id in _fbSalesLast){if(!(id in cur)){upd['csales/'+id]=null;n++;}}
-    // supprime aussi côté cloud les ventes marquées supprimées localement
-    for(id in del){if(_fbSalesLast[id]!==undefined){upd['csales/'+id]=null;}}
-    _fbSalesLast=cur;
-    if(n||Object.keys(upd).length){try{_fbdb.ref().update(upd).then(function(){try{_cloudDot();}catch(e){}});}catch(e){}}
+    for(id in cur){if(_fbSalesLast[id]!==cur[id]){upd['csales/'+id]=cur[id];_fbSalesLast[id]=cur[id];n++;}}
+    if(n){try{_fbdb.ref().update(upd).then(function(){try{_cloudDot();}catch(e){}});}catch(e){}}
   }catch(e){}
 }
 async function fbInit(){
