@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.123';
+const APP_VERSION='2026.124';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1848,11 +1848,31 @@ function caisseValidate(){
   }
   if(sale.pro){var cl=state.caisseClient||{};if(!(''+(cl.nom||'')).trim()){toast('Indique le nom du client pro');return;}sale.client={nom:(''+cl.nom).trim(),siret:(''+(cl.siret||'')).trim(),adresse:(''+(cl.adresse||'')).trim(),email:(''+(cl.email||'')).trim()};sale.facture=false;}
   CAISSE.sales.unshift(sale);saveCaisse();
+  try{_assignTicketNum(sale);}catch(e){}
   state.lastSale={id:sale.id,total:sale.total,ts:sale.ts};
   state.cart=[];state.caisseRecu='';state.caissePro=false;state.caisseClient={};state.caisseMixte=false;state.caisseSplit={espece:'',cheque:'',cb:'',vir:''};state.caisseRemise={mode:'pct',val:''};
   renderCaisse();
   toast('Encaissé '+ceur(total)+' ✓');
   caisseDeduct(sale,-1);
+}
+// Numéro de ticket séquentiel, attribué de façon atomique (transaction) → unique sur tous les téléphones.
+function _assignTicketNum(sale){
+  if(!sale||sale.num)return;
+  if(!_fbdb){return;} // hors-ligne : le numéro sera attribué à la prochaine connexion
+  try{
+    _fbdb.ref('ccounter').transaction(function(cur){return (cur==null?666:cur)+1;},function(err,committed,snap){
+      if(!err&&committed&&snap){var n=snap.val();var s=_saleById(sale.id);if(s){s.num=n;try{saveCaisse();}catch(e){}try{renderCaisse();}catch(e){}}}
+    });
+  }catch(e){}
+}
+// Attribue un numéro aux ventes locales qui n'en ont pas encore (ex. faites hors-ligne).
+function _backfillTicketNums(){
+  if(!_fbdb)return;
+  try{
+    var pend=(CAISSE.sales||[]).filter(function(s){return s&&!s.void&&!s.num;});
+    pend.sort(function(a,b){return (a.ts||0)-(b.ts||0);});
+    pend.slice(0,20).forEach(function(s){_assignTicketNum(s);});
+  }catch(e){}
 }
 function caisseDeduct(sale,sign){
   var lines=(sale.lines||[]).filter(function(l){return l.said!=null;});if(!lines.length)return;
@@ -1965,7 +1985,7 @@ function renderTickets(){
       listEl.innerHTML=all.slice(0,400).map(function(s){
         var d=new Date(s.ts);var nb=(s.lines||[]).reduce(function(a,l){return a+(l.qty||0);},0);
         var arts=(s.lines||[]).map(function(l){return (l.qty||1)+'× '+(l.nom||'?');}).join(', ');
-        return '<div class="ent" style="'+(s.void?'opacity:.55;':'')+'align-items:center;cursor:pointer" onclick="ticketOpen(\''+s.id+'\')"><div class="m" style="min-width:0"><b>'+ceur(s.total)+' · '+_salePayLabel(s)+(s.pro?' · pro':'')+(s.void?' · <span style="color:#b0512c">ANNULÉ</span>':'')+'</b><span style="white-space:normal;line-height:1.3">'+_frDateTime(d)+' · '+nb+' art. · '+esc(arts)+'</span></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c3cabb" stroke-width="2.4" style="flex:none"><path d="M9 6l6 6-6 6"/></svg></div>';
+        return '<div class="ent" style="'+(s.void?'opacity:.55;':'')+'align-items:center;cursor:pointer" onclick="ticketOpen(\''+s.id+'\')"><div class="m" style="min-width:0"><b>'+(s.num?('n°'+s.num+' · '):'')+ceur(s.total)+' · '+_salePayLabel(s)+(s.pro?' · pro':'')+(s.void?' · <span style="color:#b0512c">ANNULÉ</span>':'')+'</b><span style="white-space:normal;line-height:1.3">'+_frDateTime(d)+' · '+nb+' art. · '+esc(arts)+'</span></div><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c3cabb" stroke-width="2.4" style="flex:none"><path d="M9 6l6 6-6 6"/></svg></div>';
       }).join('');
     } else {
       var _totalSales=(CAISSE.sales||[]).length;
@@ -2020,12 +2040,13 @@ function _saleById(id){return (CAISSE.sales||[]).filter(function(x){return x.id=
 function _saleReceiptText(s){
   var lines=(s.lines||[]).map(function(l){var lt=((+l.pu)||0)*((+l.qty)||0);return (l.qty||1)+' x '+(l.nom||'?')+'   '+ceur(lt);}).join('\n');
   var rem=s.remise?('\nSous-total : '+ceur(s.remise.brut)+'\nRemise'+(s.remise.mode==='pct'&&s.remise.val?(' '+String(s.remise.val).replace('.',',')+'%'):'')+' : -'+ceur(s.remise.amount)):'';
-  return 'PÉPINS PERDUS\n'+_frDateTime(new Date(s.ts))+'\n\n'+lines+rem+'\n\nTOTAL TTC : '+ceur(s.total)+'\n(dont TVA '+ceur(s.tva)+' · HT '+ceur(s.ht)+')\nPaiement : '+_salePayLabel(s)+'\n\nMerci de votre visite !\nPépins Perdus';
+  return 'PÉPINS PERDUS\n'+(s.num?('Ticket n°'+s.num+'\n'):'')+_frDateTime(new Date(s.ts))+'\n\n'+lines+rem+'\n\nTOTAL TTC : '+ceur(s.total)+'\n(dont TVA '+ceur(s.tva)+' · HT '+ceur(s.ht)+')\nPaiement : '+_salePayLabel(s)+'\n\nMerci de votre visite !\nPépins Perdus';
 }
 function _saleReceiptHtml(s){
   var rows=(s.lines||[]).map(function(l){var lt=((+l.pu)||0)*((+l.qty)||0);return '<tr><td style="padding:4px 0;font-size:14px">'+(l.qty||1)+'&times; '+esc(l.nom||'?')+'</td><td style="padding:4px 0;text-align:right;white-space:nowrap;font-size:14px">'+ceur(lt)+'</td></tr>';}).join('');
   return '<div style="font-family:Arial,Helvetica,sans-serif;max-width:420px;margin:0 auto;color:#2c3b2f;padding:8px">'
     +'<h2 style="color:#2c5c3d;margin:0 0 2px">Pépins Perdus</h2>'
+    +(s.num?'<div style="color:#2c5c3d;font-weight:700;font-size:14px">Ticket n°'+s.num+'</div>':'')
     +'<div style="color:#7c8a7f;font-size:13px;margin-bottom:14px">'+_frDateTime(new Date(s.ts))+'</div>'
     +'<table style="width:100%;border-collapse:collapse">'+rows
     +(s.remise?('<tr><td style="padding-top:8px;border-top:1px solid #dce3dc;font-size:13px">Sous-total</td><td style="padding-top:8px;border-top:1px solid #dce3dc;text-align:right;font-size:13px">'+ceur(s.remise.brut)+'</td></tr>'+'<tr><td style="font-size:13px;color:#b0512c">Remise'+(s.remise.mode==='pct'&&s.remise.val?(' '+String(s.remise.val).replace('.',',')+'%'):'')+'</td><td style="font-size:13px;color:#b0512c;text-align:right">- '+ceur(s.remise.amount)+'</td></tr>'):'')
@@ -2093,7 +2114,7 @@ function ticketOpen(id){
   var payInputs=modes.map(function(mm){return '<div style="display:flex;gap:8px;align-items:center;margin-top:5px"><span style="flex:1;font-size:14px">'+mm[1]+'</span><input id="tk-'+mm[0]+'" inputmode="decimal" value="'+((m[mm[0]]||0)?(''+m[mm[0]]).replace('.',','):'')+'" onfocus="this.select()" placeholder="0" style="width:100px;text-align:right;padding:8px;border:1px solid #dfe3d8;border-radius:8px"></div>';}).join('');
   var cl=s.client||{};
   $('#sheetbody').innerHTML='<div class="grab"></div>'
-    +'<h2 style="font-size:20px;margin:0 0 2px">Ticket · '+ceur(s.total)+'</h2>'
+    +'<h2 style="font-size:20px;margin:0 0 2px">Ticket'+(s.num?' n°'+s.num:'')+' · '+ceur(s.total)+'</h2>'
     +'<p class="dsub">'+_frDateTime(d)+(s.pro?' · client pro':'')+(s.void?' · <b style="color:#b0512c">ANNULÉ</b>':'')+'</p>'
     +'<div class="sec">Articles</div><div class="card">'+linesHtml
       +(s.remise?('<div class="mrow" style="font-size:13px;color:var(--muted);border-top:1px solid #eef1ea;padding-top:6px;margin-top:4px"><span>Sous-total</span><span>'+ceur(s.remise.brut)+'</span></div>'+'<div class="mrow" style="font-size:13px;color:#b0512c;font-weight:600"><span>Remise'+(s.remise.mode==='pct'&&s.remise.val?(' '+String(s.remise.val).replace('.',',')+'%'):'')+'</span><span>- '+ceur(s.remise.amount)+'</span></div>'):'')
@@ -3297,8 +3318,8 @@ async function fbInit(){
       cd.on('child_added',function(s){_fbDeletedEvent(s);});
       cd.on('child_changed',function(s){_fbDeletedEvent(s);});
     }catch(e){}
-    // seed : pousse une seule fois les ventes + suppressions locales absentes du cloud
-    try{setTimeout(function(){try{fbSyncSales();}catch(e){}try{fbSyncDeleted();}catch(e){}},6000);}catch(e){}
+    // seed : pousse une seule fois les ventes + suppressions locales absentes du cloud, et attribue les n° manquants
+    try{setTimeout(function(){try{fbSyncSales();}catch(e){}try{fbSyncDeleted();}catch(e){}try{_backfillTicketNums();}catch(e){}},6000);}catch(e){}
     // 4) pousse les fiches locales plus récentes / absentes + la file d'attente hors-ligne
     _fbReady=true;
     try{await fbSyncRecords();}catch(e){}
