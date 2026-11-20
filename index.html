@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.128';
+const APP_VERSION='2026.129';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -3116,26 +3116,39 @@ function _syncBarHtml(){
   if(!ok&&err){line1+='<div style="font-size:11px;color:#b0512c;margin-top:3px">⚠️ '+esc(err)+' — vérifie Internet et l\'heure du téléphone, puis Rafraîchir.</div>';}
   return line1;
 }
-// Diagnostic à l'écran : montre EXACTEMENT ce que ce téléphone arrive à faire (à photographier et m'envoyer).
+// Diagnostic à l'écran, dans une fenêtre persistante (ne disparaît pas), avec délais max pour détecter les blocages.
+function _diagTimeout(prom,ms){return Promise.race([prom,new Promise(function(_,rej){setTimeout(function(){rej(new Error('TROP LONG / bloqué ('+ms+'ms)'));},ms);})]);}
+function _diagRender(L){
+  try{
+    document.getElementById('sheetbody').innerHTML='<div class="grab"></div>'
+      +'<h2 style="font-size:19px;margin:0 0 8px">🔧 Diagnostic</h2>'
+      +'<div class="card" style="font-size:12.5px;white-space:pre-wrap;line-height:1.6;font-family:monospace">'+L.map(function(x){return esc(x);}).join('\n')+'</div>'
+      +'<p class="hint" style="margin-top:8px">Fais une capture de cet écran et envoie-la.</p>'
+      +'<button class="ghost" style="margin-top:6px" onclick="closeSheet()">Fermer</button>';
+    document.getElementById('ov').classList.add('show');
+  }catch(e){}
+}
 async function caisseDiag(){
-  var box=document.getElementById('caisse-diag');
-  if(box)box.innerHTML='<div class="card" style="margin-top:8px;font-size:12px;white-space:pre-wrap;line-height:1.55;font-family:monospace">Diagnostic en cours…</div>';
+  _diagRender(['Diagnostic en cours… (jusqu\'à 10 s)']);
   var L=[];
   try{L.push('version: v'+APP_VERSION);}catch(e){}
   try{L.push('connecté: '+(!!window._fbdb));}catch(e){}
-  try{var u=(window.firebase&&firebase.auth&&firebase.auth().currentUser)?firebase.auth().currentUser.uid:null;L.push('authentifié: '+(u?('oui '+u.slice(0,6)):'NON'));}catch(e){L.push('auth: err '+(e&&e.message));}
+  try{var u=(window.firebase&&firebase.auth&&firebase.auth().currentUser)?firebase.auth().currentUser.uid:null;L.push('authentifié: '+(u?('oui '+u.slice(0,6)):'NON'));}catch(e){L.push('auth: err');}
   try{L.push('ventes en mémoire: '+((CAISSE.sales||[]).length));}catch(e){}
-  try{var _ls=localStorage.getItem('pepins_caisse_v1');L.push('stockage local: '+(_ls?Math.round(_ls.length/1024)+' Ko':'vide'));}catch(e){L.push('stockage: err '+(e&&e.message));}
-  try{var _t=0;var _ls2='';try{_ls2='x'.repeat(200000);localStorage.setItem('__diagtest',_ls2);localStorage.removeItem('__diagtest');L.push('écriture stockage: OK');}catch(ee){L.push('écriture stockage: PLEIN/ÉCHEC ('+(ee&&ee.name)+')');}}catch(e){}
+  try{var _ls=localStorage.getItem('pepins_caisse_v1');L.push('stockage local: '+(_ls?Math.round(_ls.length/1024)+' Ko':'vide'));}catch(e){}
+  try{localStorage.setItem('__dt','x'.repeat(200000));localStorage.removeItem('__dt');L.push('écriture stockage: OK');}catch(ee){L.push('écriture stockage: PLEIN ('+(ee&&ee.name)+')');}
+  _diagRender(L.concat(['télécharge liste complète… (en cours)']));
   if(window._fbdb){
     var t0=Date.now();
-    try{var s=await window._fbdb.ref('csales').get();var v=s.val()||{};L.push('télécharge liste complète: OK '+Object.keys(v).length+' ventes en '+(Date.now()-t0)+' ms');}
-    catch(e){L.push('télécharge liste complète: ÉCHEC '+((e&&(e.code||e.message))||e)+' ('+(Date.now()-t0)+' ms)');}
-    try{var tk=_dkey(Date.now());var t1=Date.now();var s2=await window._fbdb.ref('cday/'+tk).get();var v2=s2.val()||{};L.push('télécharge jour: OK '+Object.keys(v2).length+' ventes en '+(Date.now()-t1)+' ms');}
-    catch(e){L.push('télécharge jour: ÉCHEC '+((e&&(e.code||e.message))||e));}
-  }
+    try{var s=await _diagTimeout(window._fbdb.ref('csales').get(),10000);var v=s.val()||{};L.push('télécharge liste complète: OK '+Object.keys(v).length+' en '+(Date.now()-t0)+'ms');}
+    catch(e){L.push('télécharge liste complète: ÉCHEC '+((e&&(e.code||e.message))||e)+' ('+(Date.now()-t0)+'ms)');}
+    _diagRender(L.concat(['télécharge jour… (en cours)']));
+    var t1=Date.now();
+    try{var tk=_dkey(Date.now());var s2=await _diagTimeout(window._fbdb.ref('cday/'+tk).get(),10000);var v2=s2.val()||{};L.push('télécharge jour ('+tk+'): OK '+Object.keys(v2).length+' en '+(Date.now()-t1)+'ms');}
+    catch(e){L.push('télécharge jour: ÉCHEC '+((e&&(e.code||e.message))||e)+' ('+(Date.now()-t1)+'ms)');}
+  } else { L.push('NON connecté → aucun téléchargement possible'); }
   try{L.push('erreur interne: '+(window._fbErr||'(aucune)'));}catch(e){}
-  if(box)box.innerHTML='<div class="card" style="margin-top:8px;font-size:12px;white-space:pre-wrap;line-height:1.55;font-family:monospace">'+L.map(function(x){return esc(x);}).join('\n')+'</div>';
+  _diagRender(L);
 }
 async function _cloudPushNow(key,obj){
   try{
