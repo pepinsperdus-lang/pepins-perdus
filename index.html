@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.126';
+const APP_VERSION='2026.127';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -3084,7 +3084,9 @@ function _cloudDot(){window._lastSync=Date.now();var d=document.getElementById('
 // Rafraîchissement manuel : force un nouveau tirage du cloud + ré-affichage.
 function caisseSyncNow(){
   try{if(_fbdb){Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;_fbApplyStore(k,v);}).catch(function(){});});}}catch(e){}
-  try{_fbPullSales(true);}catch(e){}   // re-télécharge TOUTES les ventes (csales) — vraie récupération
+  try{_fbPullDays(7,true);}catch(e){}  // petits noeuds par jour — fiable sur mobile (prioritaire)
+  try{_ensureDaysCday(7);}catch(e){}
+  try{_fbPullSales(true);}catch(e){}   // + tentative liste complète (best-effort)
   try{_fbWake();}catch(e){}
   try{refreshCurrent();}catch(e){}
   try{toast('Synchronisation en cours…');}catch(e){}
@@ -3257,7 +3259,7 @@ function fbSyncSales(){
     // explicitement supprimé (présent dans la map `deleted`). Un ticket non supprimé n'est jamais retiré.
     var cur={};(CAISSE.sales||[]).forEach(function(s){if(s&&s.id&&!del[s.id])cur[s.id]=JSON.stringify(s);});
     var upd={},n=0,id;
-    for(id in cur){if(_fbSalesLast[id]!==cur[id]){upd['csales/'+id]=cur[id];_fbSalesLast[id]=cur[id];n++;}}
+    for(id in cur){if(_fbSalesLast[id]!==cur[id]){upd['csales/'+id]=cur[id];var _s=_saleById(id);if(_s&&_s.ts){upd['cday/'+_dkey(_s.ts)+'/'+id]=cur[id];}_fbSalesLast[id]=cur[id];n++;}}
     for(id in del){if(_fbSalesLast[id]!==undefined){upd['csales/'+id]=null;delete _fbSalesLast[id];n++;}}
     if(n){try{_fbdb.ref().update(upd).then(function(){try{_cloudDot();}catch(e){}});}catch(e){}}
     try{fbSyncDeleted();}catch(e){}
@@ -3328,8 +3330,15 @@ async function fbInit(){
       cd.on('child_added',function(s){_fbDeletedEvent(s);});
       cd.on('child_changed',function(s){_fbDeletedEvent(s);});
     }catch(e){}
-    // récupération GARANTIE au démarrage : on lit tout csales directement (en plus de l'écoute), pour ne manquer aucune vente
-    try{setTimeout(function(){try{_fbPullSales(true);}catch(e){}},3000);}catch(e){}
+    // RÉCUPÉRATION FIABLE SUR MOBILE : petits noeuds par jour (aujourd'hui + derniers jours) — se chargent même
+    // quand la liste complète (688+) échoue. On alimente puis on lit.
+    try{var _td0=_dkey(Date.now());var cdref=_fbdb.ref('cday/'+_td0);
+      cdref.on('child_added',function(s){_fbSaleEvent(s,false);});
+      cdref.on('child_changed',function(s){_fbSaleEvent(s,false);});
+    }catch(e){}
+    try{setTimeout(function(){try{_ensureDaysCday(7);}catch(e){}try{_fbPullDays(7,true);}catch(e){}},1500);}catch(e){}
+    // récupération complète (best-effort) : on lit aussi tout csales directement
+    try{setTimeout(function(){try{_fbPullSales(true);}catch(e){}},4000);}catch(e){}
     // seed : pousse une seule fois les ventes + suppressions locales absentes du cloud, et attribue les n° manquants
     try{setTimeout(function(){try{fbSyncSales();}catch(e){}try{fbSyncDeleted();}catch(e){}try{_backfillTicketNums();}catch(e){}},6000);}catch(e){}
     // 4) pousse les fiches locales plus récentes / absentes + la file d'attente hors-ligne
@@ -3345,6 +3354,30 @@ async function fbInit(){
 }
 // Nettoyage des tombstones (tickets/comptages/sorties supprimés) sur l'objet caisse fusionné.
 function _fbSortSales(arr){try{if(arr&&arr.sort){arr.sort(function(a,b){var d=((a&&a.ts)||0)-((b&&b.ts)||0);if(d)return d;return (''+((a&&a.id)||'')).localeCompare(''+((b&&b.id)||''));});}}catch(e){}return arr;}
+// Clé de jour (AAAA-MM-JJ) pour les petits canaux par date (cday) — chargeables même sur une connexion mobile faible.
+function _dkey(ts){var d=new Date(ts||Date.now());return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+// Petits noeuds par jour : chaque jour = une poignée de ventes → se charge sans problème sur mobile,
+// contrairement à la liste complète (688+) qui échoue à charger sur certains téléphones.
+function _recentDayKeys(n){var out=[],d=new Date();for(var i=0;i<(n||7);i++){out.push(_dkey(d.getTime()-i*86400000));}return out;}
+// Écrit les ventes locales des derniers jours dans les petits noeuds cday (pour que ce canal léger soit alimenté).
+function _ensureDaysCday(n){
+  if(!_fbdb)return;
+  try{
+    var keys={};_recentDayKeys(n||7).forEach(function(k){keys[k]=1;});
+    var del=(CAISSE&&CAISSE.deleted)||{};var upd={},c=0;
+    (CAISSE.sales||[]).forEach(function(s){if(s&&s.id&&!del[s.id]){var dk=_dkey(s.ts);if(keys[dk]){upd['cday/'+dk+'/'+s.id]=JSON.stringify(s);c++;}}});
+    if(c){try{_fbdb.ref().update(upd);}catch(e){}}
+  }catch(e){}
+}
+// Lit les petits noeuds cday (aujourd'hui + derniers jours) et fusionne — récupération FIABLE sur mobile.
+var _pullDaysT=0;
+function _fbPullDays(n,force){
+  if(!_fbdb)return;
+  var now=Date.now();if(!force && (now-_pullDaysT)<30000)return;_pullDaysT=now;
+  try{_recentDayKeys(n||7).forEach(function(dk){
+    _fbdb.ref('cday/'+dk).get().then(function(s){var v=s.val();if(!v)return;Object.keys(v).forEach(function(id){try{var val=v[id];_fbSaleEvent({key:id,val:function(){return val;}},false);}catch(e){}});try{_cloudDot();}catch(e){}}).catch(function(){});
+  });}catch(e){}
+}
 function _fbMergeCaisseTomb(obj){
   try{
     if(obj){
@@ -3409,6 +3442,7 @@ function _fbWake(){
     try{Object.keys(_FBLS).forEach(function(k){
       _fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;_fbApplyStore(k,v);}).catch(function(){});
     });}catch(e){}
+    try{_fbPullDays(7,false);}catch(e){}  // petits noeuds par jour — fiable sur mobile
     try{_fbPullSales(false);}catch(e){}   // + re-tire les ventes (csales) au cas où l'écoute temps réel était gelée
     try{_cloudDot();}catch(e){}
   }catch(e){}
