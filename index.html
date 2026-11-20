@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.125';
+const APP_VERSION='2026.126';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -3084,9 +3084,19 @@ function _cloudDot(){window._lastSync=Date.now();var d=document.getElementById('
 // Rafraîchissement manuel : force un nouveau tirage du cloud + ré-affichage.
 function caisseSyncNow(){
   try{if(_fbdb){Object.keys(_FBLS).forEach(function(k){_fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;_fbApplyStore(k,v);}).catch(function(){});});}}catch(e){}
+  try{_fbPullSales(true);}catch(e){}   // re-télécharge TOUTES les ventes (csales) — vraie récupération
   try{_fbWake();}catch(e){}
   try{refreshCurrent();}catch(e){}
   try{toast('Synchronisation en cours…');}catch(e){}
+}
+// Récupération fiable des ventes : lit directement l'ensemble csales (+ suppressions) et les fusionne.
+// Rattrape tout ticket manqué si l'écoute temps réel était gelée (app en arrière-plan sur mobile).
+var _pullSalesT=0;
+function _fbPullSales(force){
+  if(!_fbdb)return;
+  var now=Date.now();if(!force && (now-_pullSalesT)<45000)return;_pullSalesT=now;
+  try{_fbdb.ref('csales').get().then(function(s){var v=s.val();if(!v)return;Object.keys(v).forEach(function(id){try{var val=v[id];_fbSaleEvent({key:id,val:function(){return val;}},false);}catch(e){}});try{_cloudDot();}catch(e){}}).catch(function(){});}catch(e){}
+  try{_fbdb.ref('cdeleted').get().then(function(s){var v=s.val();if(!v)return;Object.keys(v).forEach(function(id){try{var val=v[id];_fbDeletedEvent({key:id,val:function(){return val;}});}catch(e){}});}).catch(function(){});}catch(e){}
 }
 function _syncBarHtml(){
   var ok=(typeof _fbdb!=='undefined'&&!!_fbdb);
@@ -3318,6 +3328,8 @@ async function fbInit(){
       cd.on('child_added',function(s){_fbDeletedEvent(s);});
       cd.on('child_changed',function(s){_fbDeletedEvent(s);});
     }catch(e){}
+    // récupération GARANTIE au démarrage : on lit tout csales directement (en plus de l'écoute), pour ne manquer aucune vente
+    try{setTimeout(function(){try{_fbPullSales(true);}catch(e){}},3000);}catch(e){}
     // seed : pousse une seule fois les ventes + suppressions locales absentes du cloud, et attribue les n° manquants
     try{setTimeout(function(){try{fbSyncSales();}catch(e){}try{fbSyncDeleted();}catch(e){}try{_backfillTicketNums();}catch(e){}},6000);}catch(e){}
     // 4) pousse les fiches locales plus récentes / absentes + la file d'attente hors-ligne
@@ -3397,6 +3409,7 @@ function _fbWake(){
     try{Object.keys(_FBLS).forEach(function(k){
       _fbdb.ref('stores/'+k).get().then(function(s){var v=s.val();if(v==null)return;_fbApplyStore(k,v);}).catch(function(){});
     });}catch(e){}
+    try{_fbPullSales(false);}catch(e){}   // + re-tire les ventes (csales) au cas où l'écoute temps réel était gelée
     try{_cloudDot();}catch(e){}
   }catch(e){}
 }
