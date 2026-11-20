@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.124';
+const APP_VERSION='2026.125';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1861,7 +1861,7 @@ function _assignTicketNum(sale){
   if(!_fbdb){return;} // hors-ligne : le numéro sera attribué à la prochaine connexion
   try{
     _fbdb.ref('ccounter').transaction(function(cur){return (cur==null?666:cur)+1;},function(err,committed,snap){
-      if(!err&&committed&&snap){var n=snap.val();var s=_saleById(sale.id);if(s){s.num=n;try{saveCaisse();}catch(e){}try{renderCaisse();}catch(e){}}}
+      if(!err&&committed&&snap){var n=snap.val();var s=_saleById(sale.id);if(s){s.num=n;try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{if(typeof fbSyncSales==='function')fbSyncSales();}catch(e){}try{renderCaisse();}catch(e){}}}
     });
   }catch(e){}
 }
@@ -1871,7 +1871,7 @@ function _backfillTicketNums(){
   try{
     var pend=(CAISSE.sales||[]).filter(function(s){return s&&!s.void&&!s.num;});
     pend.sort(function(a,b){return (a.ts||0)-(b.ts||0);});
-    pend.slice(0,20).forEach(function(s){_assignTicketNum(s);});
+    pend.slice(0,8).forEach(function(s,i){setTimeout(function(){try{_assignTicketNum(s);}catch(e){}},i*400);});
   }catch(e){}
 }
 function caisseDeduct(sale,sign){
@@ -3325,9 +3325,8 @@ async function fbInit(){
     try{await fbSyncRecords();}catch(e){}
     Object.keys(_fbPending).forEach(function(k){if(k==='records'){try{fbSyncRecords();}catch(e){}}else if(k==='__sales'||k==='__del'){/* fait plus bas */}else{try{_fbTxMerge(k,_fbPending[k]);}catch(e){}}});
     _fbPending={};
-    // Réconciliation UNIQUE au démarrage : remonte une seule fois les ventes locales que le cloud n'aurait pas
-    // (ventes faites hors-ligne). Grâce à l'ordre déterministe, c'est sans effet si rien de nouveau — jamais de boucle.
-    try{setTimeout(function(){try{if(_fbdb&&CAISSE&&CAISSE.sales&&CAISSE.sales.length){_fbTxMerge('caisse',CAISSE);}}catch(e){}},5000);}catch(e){}
+    // (Plus de réécriture du gros bloc "caisse" au démarrage : les ventes locales sont remontées
+    //  une par une via fbSyncSales — léger et fiable. On ne martèle plus le noeud lourd.)
     window._fbStage='';window._fbErr='';
     try{_cloudDot();}catch(e){}
   }catch(e){_fbReady=false;window._fbErr=(window._fbStage||'init')+':'+((e&&(e.code||e.message))||e);try{var sb=document.getElementById('tk-syncbar');if(sb)sb.innerHTML=_syncBarHtml();}catch(_){}setTimeout(fbInit,5000);}
@@ -3361,10 +3360,19 @@ function _fbTxMerge(key,localObj){
     },function(err,committed,snap){try{_cloudDot();}catch(e){}},false);
   }catch(e){ try{_fbdb.ref('stores/'+key).set(JSON.stringify(localObj));}catch(_){} }
 }
+var _caisseBlobT=null,_fbPendingCaisse=null;
 function cloudPush(key,obj){
   try{
     if(_fbApplying)return;                 // ne pas re-ecrire pendant l'application d'un changement distant
     if(key==='records'){ if(_fbdb)fbSyncRecords(); else _fbPending['records']=1; return; }
+    if(key==='caisse'){
+      // Les VENTES passent en temps réel par csales (canal fiable). Le gros bloc "caisse" ne sert plus
+      // qu'aux méta + sauvegarde : on l'écrit de façon ESPACÉE (coalescée) pour ne plus marteler un noeud lourd.
+      _fbPendingCaisse=obj;
+      if(_fbdb){ clearTimeout(_caisseBlobT); _caisseBlobT=setTimeout(function(){try{var o=_fbPendingCaisse;_fbPendingCaisse=null;if(o)_fbTxMerge('caisse',o);}catch(e){}},25000); }
+      else { _fbPending['caisse']=obj; }
+      return;
+    }
     if(_fbdb){ _fbTxMerge(key,obj); }      // fusion transactionnelle (jamais d'écrasement)
     else { _fbPending[key]=obj; }
   }catch(e){}
