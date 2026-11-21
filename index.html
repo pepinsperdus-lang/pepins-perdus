@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.129';
+const APP_VERSION='2026.130';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -3124,9 +3124,22 @@ function _diagRender(L){
       +'<h2 style="font-size:19px;margin:0 0 8px">🔧 Diagnostic</h2>'
       +'<div class="card" style="font-size:12.5px;white-space:pre-wrap;line-height:1.6;font-family:monospace">'+L.map(function(x){return esc(x);}).join('\n')+'</div>'
       +'<p class="hint" style="margin-top:8px">Fais une capture de cet écran et envoie-la.</p>'
-      +'<button class="ghost" style="margin-top:6px" onclick="closeSheet()">Fermer</button>';
+      +'<button class="del" style="margin-top:8px" onclick="caisseFreeStorage()">🧹 Libérer la mémoire et recharger</button>'
+      +'<p class="hint" style="margin:4px 0 0">Sûr : tes ventes sont dans le cloud, le téléphone les re-téléchargera.</p>'
+      +'<button class="ghost" style="margin-top:8px" onclick="closeSheet()">Fermer</button>';
     document.getElementById('ov').classList.add('show');
   }catch(e){}
+}
+// Libère la mémoire locale saturée (cause du blocage). Sûr : le cloud garde tout, le téléphone re-télécharge.
+function caisseFreeStorage(){
+  if(!window.confirm('Libérer la mémoire locale de ce téléphone ?\n\nTes ventes sont en sécurité dans le cloud — le téléphone va les re-télécharger. Rien n\'est perdu.'))return;
+  try{
+    var keep={};
+    ['pp_gate','pp_faceid','pp_updto'].forEach(function(k){try{var v=localStorage.getItem(k);if(v!=null)keep[k]=v;}catch(e){}});
+    try{localStorage.clear();}catch(e){}
+    Object.keys(keep).forEach(function(k){try{localStorage.setItem(k,keep[k]);}catch(e){}});
+  }catch(e){}
+  try{location.replace(location.pathname+'?fresh='+Date.now());}catch(e){try{location.reload();}catch(_){}}
 }
 async function caisseDiag(){
   _diagRender(['Diagnostic en cours… (jusqu\'à 10 s)']);
@@ -3137,6 +3150,7 @@ async function caisseDiag(){
   try{L.push('ventes en mémoire: '+((CAISSE.sales||[]).length));}catch(e){}
   try{var _ls=localStorage.getItem('pepins_caisse_v1');L.push('stockage local: '+(_ls?Math.round(_ls.length/1024)+' Ko':'vide'));}catch(e){}
   try{localStorage.setItem('__dt','x'.repeat(200000));localStorage.removeItem('__dt');L.push('écriture stockage: OK');}catch(ee){L.push('écriture stockage: PLEIN ('+(ee&&ee.name)+')');}
+  try{var _tot=0,_parts=[];for(var _i=0;_i<localStorage.length;_i++){var _k=localStorage.key(_i);var _sz=(localStorage.getItem(_k)||'').length;_tot+=_sz;_parts.push([_k,_sz]);}_parts.sort(function(a,b){return b[1]-a[1];});L.push('— mémoire totale: '+Math.round(_tot/1024)+' Ko ('+localStorage.length+' clés) —');_parts.slice(0,6).forEach(function(p){L.push('  '+p[0]+': '+Math.round(p[1]/1024)+' Ko');});}catch(e){}
   _diagRender(L.concat(['télécharge liste complète… (en cours)']));
   if(window._fbdb){
     var t0=Date.now();
