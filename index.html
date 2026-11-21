@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.130';
+const APP_VERSION='2026.131';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1609,7 +1609,31 @@ function loadCaisse(){try{var s=JSON.parse(localStorage.getItem('pepins_caisse_v
 function _caissePrune(){var ch=false;var d=(CAISSE&&CAISSE.deleted);if(d){var b=(CAISSE.sales||[]).length;CAISSE.sales=(CAISSE.sales||[]).filter(function(s){return !(s&&s.id&&d[s.id]);});if((CAISSE.sales||[]).length!==b)ch=true;}var dc=(CAISSE&&CAISSE.deletedC);if(dc){var b2=(CAISSE.counts||[]).length;CAISSE.counts=(CAISSE.counts||[]).filter(function(c){return !(c&&c.id&&dc[c.id]);});if((CAISSE.counts||[]).length!==b2)ch=true;}var ds=(CAISSE&&CAISSE.deletedS);if(ds&&CAISSE.sorties){var b3=CAISSE.sorties.length;CAISSE.sorties=CAISSE.sorties.filter(function(x){return !(x&&x.id&&ds[x.id]);});if(CAISSE.sorties.length!==b3)ch=true;}return ch;}
 function _caisseDrop(ids){if(!CAISSE.deleted)CAISSE.deleted={};var now=Date.now();var m={};(ids||[]).forEach(function(id){if(id){CAISSE.deleted[id]=now;m[id]=1;}});CAISSE.sales=(CAISSE.sales||[]).filter(function(s){return !(s&&s.id&&m[s.id]);});}
 function _caisseDropCount(id){if(!CAISSE.deletedC)CAISSE.deletedC={};if(id)CAISSE.deletedC[id]=Date.now();CAISSE.counts=(CAISSE.counts||[]).filter(function(c){return !(c&&c.id&&c.id===id);});}
-function saveCaisse(){try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{cloudPush('caisse',CAISSE);}catch(e){}try{if(typeof fbSyncSales==='function')fbSyncSales();}catch(e){}try{if(typeof fbSyncDeleted==='function')fbSyncDeleted();}catch(e){}}
+// ---- STOCKAGE LOCAL BORNÉ : on ne garde en mémoire du téléphone que les ventes RÉCENTES (le reste vit dans le cloud).
+//      Évite la saturation de la mémoire iPhone (~5 Mo) qui bloquait toute la synchro.
+var _CAISSE_LS_DAYS=45, _CAISSE_LS_MIN=250;
+function _pruneStorage(){try{var kill=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(!k)continue;if(/~meta$/.test(k)||/^__/.test(k)||/chunk/i.test(k))kill.push(k);}kill.forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});}catch(e){}}
+function _caisseSlim(maxN){
+  var sales=(CAISSE&&CAISSE.sales)||[];
+  var cut=Date.now()-_CAISSE_LS_DAYS*86400000;
+  var recent=sales.filter(function(s){return s&&((+s.ts)||0)>=cut;});
+  var minN=(maxN!=null?maxN:_CAISSE_LS_MIN);
+  if(recent.length<minN){recent=sales.slice().sort(function(a,b){return ((+b.ts)||0)-((+a.ts)||0);}).slice(0,minN);}
+  var slim={};for(var k in CAISSE){if(k!=='sales')slim[k]=CAISSE[k];}slim.sales=recent;slim._trim=1;
+  return slim;
+}
+function _persistCaisse(){
+  try{
+    var json=JSON.stringify(_caisseSlim());
+    try{localStorage.setItem('pepins_caisse_v1',json);return;}
+    catch(e){ _pruneStorage();
+      try{localStorage.setItem('pepins_caisse_v1',json);return;}catch(_){}
+      try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(_caisseSlim(100)));return;}catch(_){}
+      try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(_caisseSlim(40)));}catch(_){}
+    }
+  }catch(e){}
+}
+function saveCaisse(){_persistCaisse();try{cloudPush('caisse',CAISSE);}catch(e){}try{if(typeof fbSyncSales==='function')fbSyncSales();}catch(e){}try{if(typeof fbSyncDeleted==='function')fbSyncDeleted();}catch(e){}}
 function ceur(x){x=(+x)||0;var r=Math.round(x*100)/100;if(r===Math.round(r))return String(Math.round(r))+' €';return r.toFixed(2).replace('.',',')+' €';}
 // Prix pour un champ d'édition : pas de décimales inutiles (15 et non 15,00 ; 1,5 reste 1,5 ; 0 -> vide)
 function _pedit(x){x=(+x)||0;if(x===0)return '';var r=Math.round(x*100)/100;if(r===Math.round(r))return String(Math.round(r));return (''+r).replace('.',',');}
@@ -1861,7 +1885,7 @@ function _assignTicketNum(sale){
   if(!_fbdb){return;} // hors-ligne : le numéro sera attribué à la prochaine connexion
   try{
     _fbdb.ref('ccounter').transaction(function(cur){return (cur==null?666:cur)+1;},function(err,committed,snap){
-      if(!err&&committed&&snap){var n=snap.val();var s=_saleById(sale.id);if(s){s.num=n;try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{if(typeof fbSyncSales==='function')fbSyncSales();}catch(e){}try{renderCaisse();}catch(e){}}}
+      if(!err&&committed&&snap){var n=snap.val();var s=_saleById(sale.id);if(s){s.num=n;try{_persistCaisse();}catch(e){}try{if(typeof fbSyncSales==='function')fbSyncSales();}catch(e){}try{renderCaisse();}catch(e){}}}
     });
   }catch(e){}
 }
@@ -3219,14 +3243,14 @@ function _fbApplyStore(key,val){
     if(key==='caisse'&&obj){if(obj.sales&&obj.deleted){var _d=obj.deleted;obj.sales=obj.sales.filter(function(s){return !(s&&s.id&&_d[s.id]);});}if(obj.counts&&obj.deletedC){var _dc=obj.deletedC;obj.counts=obj.counts.filter(function(c){return !(c&&c.id&&_dc[c.id]);});}if(obj.sorties&&obj.deletedS){var _ds=obj.deletedS;obj.sorties=obj.sorties.filter(function(x){return !(x&&x.id&&_ds[x.id]);});}if(obj.sales&&typeof _fbSortSales==='function')_fbSortSales(obj.sales);}
     var mergedStr=JSON.stringify(obj);
     if(localStorage.getItem(ls)===mergedStr)return mergedStr; // rien de nouveau
-    localStorage.setItem(ls,mergedStr);
+    if(key!=='caisse'){localStorage.setItem(ls,mergedStr);} // la caisse est persistée en version allégée (voir plus bas)
     if(key==='elevage'){if(obj&&obj.lots)ELEV=obj;}
     else if(key==='todo'){if(obj&&obj.items)TODO=obj;}
     else if(key==='arros'){if(obj&&obj.zones)ARROS=obj;}
     else if(key==='sem'){if(obj&&obj.cat)SEM=obj;}
     else if(key==='pieds'){if(obj&&obj.notes)PIEDS=obj;}
     else if(key==='cmd'){if(obj)CMD={rows:obj.rows||null,done:obj.done||{}};}
-    else if(key==='caisse'){if(obj&&obj.sales)CAISSE=obj;}
+    else if(key==='caisse'){if(obj&&obj.sales){CAISSE=obj;try{_persistCaisse();}catch(e){}}}
     else if(key==='apparts'){if(obj&&obj.items&&obj.items.length){APP_ARTICLES=obj.items;try{renderCaisseAppart();}catch(e){}}}
     else if(key==='uservars'){try{loadUserVars();}catch(e){}}
     _fbRenderSoon();
@@ -3257,7 +3281,7 @@ function fbSyncRecords(){
   return Promise.resolve();
 }
 // ===== SYNCHRO DES VENTES "UNE PAR UNE" (csales/<id>) — canal fiable, comme les fiches =====
-function _caisseSaveLocalRender(){try{if(CAISSE&&CAISSE.sales)_fbSortSales(CAISSE.sales);}catch(e){}try{localStorage.setItem('pepins_caisse_v1',JSON.stringify(CAISSE));}catch(e){}try{_fbRenderSoon();}catch(e){}}
+function _caisseSaveLocalRender(){try{if(CAISSE&&CAISSE.sales)_fbSortSales(CAISSE.sales);}catch(e){}try{_persistCaisse();}catch(e){}try{_fbRenderSoon();}catch(e){}}
 function _fbSaleUpsert(id,sale){
   if(!CAISSE.sales)CAISSE.sales=[];
   var arr=CAISSE.sales,i=-1;for(var k=0;k<arr.length;k++){if(arr[k]&&arr[k].id===id){i=k;break;}}
@@ -3596,13 +3620,30 @@ function _allData(){var s={};CLOUD_KEYS.forEach(function(e){try{var raw=localSto
 function _applyStores(stores){if(!stores)return 0;var n=0;CLOUD_KEYS.forEach(function(e){var o=stores[e.k];if(o==null)return;if(_isEmptyVal(e.k,o))return;
   try{_localBackup(e.ls);localStorage.setItem(e.ls,JSON.stringify(o));localStorage.setItem(e.ls+'_ts',String(_now()));n++;}catch(_){}});return n;}
 // Photo locale complète (roulement des 8 dernières).
-function _snapshotLocalAll(tag){try{var snap=_allData();snap.tag=tag||'';
-  var idx=[];try{idx=JSON.parse(localStorage.getItem('pepins_snaps')||'[]');if(!Array.isArray(idx))idx=[];}catch(_){idx=[];}
-  var id=String(_now())+'_'+Math.floor(idx.length);
-  localStorage.setItem('pepins_snap_'+id,JSON.stringify(snap));
-  idx.push({id:id,ts:snap.ts,date:snap.date,tag:snap.tag});
-  while(idx.length>8){var old=idx.shift();try{localStorage.removeItem('pepins_snap_'+old.id);}catch(_){}}
-  localStorage.setItem('pepins_snaps',JSON.stringify(idx));}catch(_){}}
+function _snapshotLocalAll(tag){
+  try{
+    var snap=_allData();snap.tag=tag||'';
+    var idx=[];try{idx=JSON.parse(localStorage.getItem('pepins_snaps')||'[]');if(!Array.isArray(idx))idx=[];}catch(_){idx=[];}
+    var id=String(_now())+'_'+Math.floor(idx.length);
+    // On ne garde QU'UNE sauvegarde (chaque snapshot pèse ~380 Ko : en garder plusieurs saturait la mémoire iPhone).
+    while(idx.length>0){var old=idx.shift();try{localStorage.removeItem('pepins_snap_'+old.id);}catch(_){}}
+    try{localStorage.setItem('pepins_snap_'+id,JSON.stringify(snap));}
+    catch(e){try{_pruneStorage();_cleanupSnaps();}catch(_){}try{localStorage.setItem('pepins_snap_'+id,JSON.stringify(snap));}catch(_){return;}}
+    idx.push({id:id,ts:snap.ts,date:snap.date,tag:snap.tag});
+    try{localStorage.setItem('pepins_snaps',JSON.stringify(idx));}catch(_){}
+  }catch(_){}
+}
+// Nettoie les sauvegardes accumulées (cause de la saturation mémoire) : ne garde que la plus récente, supprime les orphelines.
+function _cleanupSnaps(){
+  try{
+    var idx=[];try{idx=JSON.parse(localStorage.getItem('pepins_snaps')||'[]');if(!Array.isArray(idx))idx=[];}catch(_){idx=[];}
+    while(idx.length>1){var old=idx.shift();try{localStorage.removeItem('pepins_snap_'+old.id);}catch(_){}}
+    try{localStorage.setItem('pepins_snaps',JSON.stringify(idx));}catch(_){}
+    var keep={};idx.forEach(function(e){keep['pepins_snap_'+e.id]=1;});
+    var kill=[];for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('pepins_snap_')===0&&!keep[k])kill.push(k);}
+    kill.forEach(function(k){try{localStorage.removeItem(k);}catch(e){}});
+  }catch(e){}
+}
 // Export complet (fichier que TU gardes).
 function exportFull(){try{dl('pepins-sauvegarde-complete-'+today()+'.json',JSON.stringify(_allData()),'application/json');toast('Sauvegarde complète exportée');}catch(e){toast('Erreur export');}}
 // Import : accepte le format complet {stores:...} ou l'ancien (tableau de greffes).
@@ -3694,7 +3735,7 @@ function init(){
   try{var _sb=document.getElementById('sheetbody');if(_sb&&!_sb._saveHook){_sb._saveHook=1;_sb.addEventListener('input',function(){var b=document.getElementById('sheet-save');if(b){b.disabled=false;b.style.opacity='1';}});}}catch(e){}
 }
 showGateIfNeeded();
-try{_snapshotLocalAll('avant-synchro');}catch(e){}
+try{_cleanupSnaps();}catch(e){}   // libère la mémoire : supprime les sauvegardes accumulées (plus de saturation)
 appBoot();
 </script>
 </body>
