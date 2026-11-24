@@ -467,7 +467,7 @@ const SUBS=['Tray','Perlite-vermiculite','Argile','Perlite-argile','Perlite-sabl
 const colors=['#3f7350','#c8663f','#c99a3c','#4b7f52','#7c6a53','#5b8a9c'];
 const $=s=>document.querySelector(s);
 const priceMap={};DATA.varietes.forEach(v=>priceMap[v.nom]=v.prix);
-const APP_VERSION='2026.132';
+const APP_VERSION='2026.133';
 const KEY='pepins_db_v4';const OLDKEYS=['pepins_db_v3','pepins_db_v2','pepins_db_v1'];let mem=null;
 const UVKEY='pepins_uservar_v1';const SEMKEY='pepins_semences_v1';
 const state={records:[],mode:'greffe',rang:null,op:null,sub:'Tray',btyp:'hiver',gYear:2026,cYear:2027,addYear:2026,semYear:2026,smYear:2026,cmdEdit:null,cmdAdd:false,stYear:'all',todoShowDone:false,gSort:'recent',lastPg:null};
@@ -1109,7 +1109,7 @@ function sheetBouture(){const r=cur;const keys=Object.keys(r.doses).length?Objec
 function saveG(){cur.prev=iv('e-prev');cur.eff=iv('e-eff');cur.rep=iv('e-rep');cur.regr=iv('e-regr');cur.rep2=iv('e-rep2');cur.invendus=iv('e-inv');cur.rupture=document.getElementById('e-rup').value||null;cur.mt=Date.now();saveDB();closeSheet();toast('Mis à jour');refreshCurrent();}
 function saveB(keys){const d={};keys.forEach((k,i)=>{const n=iv('bn'+i),rr=iv('br'+i);if(n!=null||rr!=null)d[k]={n,r:rr};});cur.doses=d;cur.mt=Date.now();saveDB();closeSheet();toast('Mis à jour');refreshCurrent();}
 function delRec(){var removed=cur;state.records=state.records.filter(r=>r.id!==cur.id);saveDB();closeSheet();refreshCurrent();toastUndo('Supprimé',function(){if(removed){state.records.push(removed);saveDB();refreshCurrent();}});}
-function refreshCurrent(){const on=document.querySelector('.view.on').id.replace('v-','');show(on);}
+function refreshCurrent(){var _sc=document.querySelector('.scroll');var _y=_sc?_sc.scrollTop:0;const on=document.querySelector('.view.on').id.replace('v-','');show(on);try{if(_sc&&_y)_sc.scrollTop=_y;}catch(e){}}
 
 // ---- SEMIS (semé → levé) ----
 function renderSmYearSeg(){const ys=yearsBand();$('#sm-year').innerHTML=ys.map(y=>`<button class="${y===state.smYear?'on':''}" onclick="state.smYear=${y};renderSemis()">${y}</button>`).join('');}
@@ -3458,6 +3458,15 @@ function _fbPullDays(n,force){
     _fbdb.ref('cday/'+dk).get().then(function(s){var v=s.val();if(!v)return;Object.keys(v).forEach(function(id){try{var val=v[id];_fbSaleEvent({key:id,val:function(){return val;}},false);}catch(e){}});try{_cloudDot();}catch(e){}}).catch(function(){});
   });}catch(e){}
 }
+// Récupération CIBLÉE d'aujourd'hui (petit noeud) — filet de sécurité léger si l'écoute temps réel
+// est gelée en arrière-plan sur un téléphone : les ventes des autres apparaissent en quelques secondes.
+// Dédoublonnage via _fbSalesLast : ne déclenche un ré-affichage QUE s'il y a réellement une vente nouvelle/modifiée.
+function _fbPullToday(){
+  if(!_fbdb)return;
+  try{var dk=_dkey(Date.now());
+    _fbdb.ref('cday/'+dk).get().then(function(s){var v=s.val();if(!v)return;Object.keys(v).forEach(function(id){try{var val=v[id];_fbSaleEvent({key:id,val:function(){return val;}},false);}catch(e){}});try{_cloudDot();}catch(e){}}).catch(function(){});
+  }catch(e){}
+}
 function _fbMergeCaisseTomb(obj){
   try{
     if(obj){
@@ -3553,6 +3562,7 @@ try{window.addEventListener('focus',function(){_fbWake();});}catch(e){}
 try{window.addEventListener('pageshow',function(){_fbWake();_checkUpdate();});}catch(e){}
 try{window.addEventListener('online',function(){_fbWake();_checkUpdate();});}catch(e){}
 // Rafraîchissement automatique pendant que la caisse est ouverte (re-tire le cloud toutes les 20 s).
+try{setInterval(function(){try{if(document.hidden)return;var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');if(cur!=='caisse'&&cur!=='home')return;_fbPullToday();}catch(e){}},9000);}catch(e){}   // filet léger : ventes du jour des autres téléphones en ~9 s max
 try{setInterval(function(){try{if(document.hidden)return;var cur=((document.querySelector('.view.on')||{}).id||'').replace('v-','');if(cur!=='caisse')return;_fbWake();}catch(e){}},20000);}catch(e){}
 try{setTimeout(_checkUpdate,3500);}catch(e){}
 function _cloudGet(key){return fetch(CLOUD_R+'?k='+encodeURIComponent(key)+'&t='+Date.now()).then(function(r){return r.text();}).catch(function(){return '';});}
